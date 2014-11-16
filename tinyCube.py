@@ -21,6 +21,7 @@ _default_workload = "./config/workload.dat";
 
 # Global variable
 relations = [];
+aggregates = [];
 attributes = dict();
 partitions = dict();
 
@@ -49,13 +50,16 @@ def tinyCube(query):
 		if os.path.exists(filename):
 			f = open(filename, 'r');
 			for line in f:
+				line = line.replace("\n","");
 				train_set.append(line);
 		else:
 			f = open(_default_workload, 'r');
 			for line in f:
+				line = line.replace("\n","");
 				train_set.append(line);
 
 		t.train(partitions,train_set);
+	print partitions;
 
   # Do the query rewrite
 	#query_set = rewriter.queryRewriter(query);

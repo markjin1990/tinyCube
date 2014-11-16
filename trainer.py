@@ -35,23 +35,25 @@ def train_parser(query):
 def train(partitions,train_set):
 	for query in train_set:
 		ret = train_parser(query);
+		#print ret;
 		relation = ret[0];
 		att_dict = ret[1];
-		print att_dict;
+		#print att_dict;
 		if relation in partitions:
 			att_dict_cube = partitions[relation];
-			for key in att_dict:
+			for key in att_dict.iterkeys():
 				if key in att_dict_cube:
-					att_dict_cube[key] = list(set(att_dict_cube[key]+att_dict[key])).sort();
+					att_dict_cube[key] = list(set(att_dict_cube[key]+att_dict[key]));
 				else:
-					att_dict_cube[key] = att_dict[key].sort();
+					att_dict_cube[key] = att_dict[key];
 			partitions[relation] = att_dict_cube;
 		else:
 			att_dict_cube = dict();
-			for key in att_dict:
-				att_dict_cube[key] = att_dict[key].sort();
+			for key in att_dict.iterkeys():
+				att_dict_cube[key] = att_dict[key];
 			partitions[relation] = att_dict_cube;
-		print att_dict_cube;
+	for key,value in att_dict_cube.iteritems():
+		att_dict_cube[key].sort();
 
 train_parser("SELECT SUM(A) FROM T WHERE A >= 10 AND B BETWEEN 0 AND 20 AND C = 10");
 
