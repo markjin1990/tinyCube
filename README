@@ -1,0 +1,4 @@
+
+ERROR
+1. ImportError: No module named MySQLdb
+   For Ubuntu User: run "sudo apt-get install python-mysqldb"
