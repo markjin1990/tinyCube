@@ -11,10 +11,15 @@ class Cube:
 		partitions = init_partition;
 		dimensions = init_partition.keys();
 
-  def repartition():
+  	def repartition():
 		return 0;
 
-	def findAllPartialAggregates(grids,cursor);
+	def computeFinalAnswer(answers):
+		return 0;
+
+
+	def findPartialAnswer(grids,cursor):
+		return 0;
 
 	def findGrids(predicate):
 		grids = [];
@@ -89,15 +94,18 @@ class Cube:
 					        
 
 	# Get predicate like A:10,20, B: >= 10 
-  def answerQuery(predicate,cursor):
+ 	def answerQuery(predicate,cursor):
 		# get all grids in the cube that is within the prdicates
 		grids = findGrids(predicate);
     
 		# find all partial aggregates
-		answers = findAllPartialAggregates(grids,cursor);
+		#answers = findPartialAnswer(grids,cursor);
+
+    # Compute final answer (depend on actual aggregates)
+		#answer = computeFinalAnswer(answers);
 
 		# return final answer
-		return sum(answers);
+		#return sum(answer);
 
 	
 

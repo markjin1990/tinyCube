@@ -8,6 +8,7 @@ import os.path
 # Local library
 import queryRewriter as rewriter
 import trainer as t
+import Cube as Cube
 
 # Constants
 _host_name = "localhost";
@@ -23,7 +24,8 @@ _default_workload = "./config/workload.dat";
 relations = [];
 aggregates = [];
 attributes = dict();
-partitions = dict();
+attr_partition = dict();
+cube_partition = dict();
 
 def tinyCube(query):
   # Connect to DBMS (MySQL)
@@ -58,13 +60,12 @@ def tinyCube(query):
 				line = line.replace("\n","");
 				train_set.append(line);
 
-		t.train(partitions,train_set);
-	print partitions;
+		t.train(train_set,False,cube_partition,attr_partition);
+  	# Find Correlated Attributes From Workload
 
-  # Do the query rewrite
-	#query_set = rewriter.queryRewriter(query);
-	#for newquery in query_set:
-		#print(newquery);
+	print(cube_partition);
+  # Construct Cubes
+		
 
 
 tinyCube('TRAIN ./config/default_workload.dat');
