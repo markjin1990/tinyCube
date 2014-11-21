@@ -93,7 +93,7 @@ def train(train_set,ifTinyCube,cube_partitions,attr_partition):
 	# (Put them in same partition if ifTinyCube is false)
 	partAttr(train_set,attr_partition,ifTinyCube);
 	
-	print(attr_partition);
+	#print(attr_partition);
 	
 	'''			
 	for query in train_set:
