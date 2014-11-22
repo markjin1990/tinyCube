@@ -14,6 +14,10 @@ class Cube:
 		self.attr_group = attr_group;
 		self.attr_partition = init_partition;
 		self.dimensions = self.attr_group.keys();
+		# Initialize tinycubes
+		tinycubes_size = len(set(self.attr_group.values()));
+		for i in range(0,tinycubes_size):
+			self.tinyCubes.append(dict());
 		
 	def ifAggregate(self,aggregate):
 		if self.aggregate == aggregate:
@@ -39,23 +43,52 @@ class Cube:
 	def computeFinalAnswer(self,answers):
 		return 0;
 
+	def askDatabase(self,key_set,cursor):
+		return [0];
 
 	def findPartialAnswer(self,grids,cursor):
-		for key in grids:
-			# Check which cube it belongs
+		if not grids:
+			return 0;
 
-		return 0;
+		cached_partial_result = [];
+		unknown_partial_aggr = [];
+		unknown_partial_aggr_result = [];
+		tinycube_id = int(grids[0]);
+		tinyCube = self.tinyCubes[tinycube_id];
+		for key in grids[1:]:
+			# Check which cube it belongs
+			if key in tinyCube.keys():
+				cached_partial_result.append(tinyCube[key]);
+			else:
+				unknown_partial_aggr.append(key);
+
+		if unknown_partial_aggr:
+			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,cursor);
+
+		return cached_partial_result+unknown_partial_aggr_result;
 
 	def findGrids(self,predicate):
 		grids = [];
 		# Check if the predicate attributes are in the same tinyCube
 		temp_set = set();
-		for keys in predicate.keys():
-			temp_set.add(attr_group[key]);
+		for key in predicate.keys():
+			temp_set.add(self.attr_group[key]);
 
-		# All Attributes are in the same tinyCube
+		# If All Attributes are in the same tinyCube
+		# (Otherwise, they are in the different tinyCubes, 
+		# which means no previous predicate can be levaraged. 
+		# We choose to return empty grid in this case)
 		if len(temp_set) == 1:
-			for att in self.dimensions:
+			tinycube_id = temp_set.pop();
+			# Append this cube id information in girds to benefit
+			# findPartialAnswer function
+			tinycube_attr = [];
+			# Get all attribute within this tinyCube
+			for key,value in self.attr_group.iteritems():
+				if value == tinycube_id:
+					tinycube_attr.append(key);
+
+			for att in tinycube_attr:
 				grid_dim = [];
 				temp_part = self.attr_partition[att];
 				# If the range in this dimension is specified by the predicate
@@ -123,14 +156,12 @@ class Cube:
 					new_grids = list();
 					for grid in grids:
 						for item in grid_dim:
-							new_grids.append(grid+'&'+item);
+							new_grids.append(str(grid)+"&"+str(item));
 					grids = new_grids;
 
-		# They are in the different tinyCubes, 
-		# which means no previous predicate can be levaraged
-		else:
-			
-
+			# Inset tinycube id at the beginning of the 
+			# grids to benefit findPartialAggregates()
+			grids.insert(0,tinycube_id);
 		
 		return grids;
 					        
@@ -172,7 +203,7 @@ class Cube:
 		print(grids);
 		print("END");
 		# find all partial aggregates
-		answers = findPartialAnswer(grids,cursor);
+		answers = self.findPartialAnswer(grids,cursor);
 
     # Compute final answer (depend on actual aggregates)
 		#answer = computeFinalAnswer(answers);
