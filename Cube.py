@@ -5,14 +5,15 @@
 class Cube:
 	aggregate = "";
 	dimensions = [];
-	partitions = dict();
-	cache = dict();
-	num_cache = 0;
+	attr_partition = dict();
+	attr_group = dict();
+	tinyCubes = [];
 
-	def __init__(self,agg,attr_part,init_partition):
+	def __init__(self,agg,attr_group,init_partition):
 		self.aggregate = agg;
-		self.partitions = init_partition;
-		self.dimensions = init_partition.keys();
+		self.attr_group = attr_group;
+		self.attr_partition = init_partition;
+		self.dimensions = self.attr_group.keys();
 		
 	def ifAggregate(self,aggregate):
 		if self.aggregate == aggregate:
@@ -22,6 +23,15 @@ class Cube:
 		
 	def checkAggregate(self):
 		return self.aggregate;
+
+	def getNumOfCubes(Self):
+		return len(tinyCubes);
+
+	def getNumofGrids(Self):
+		num = 0;
+		for cube in tinyCubes:
+			num += len(cube);
+		return num;
 
 	def repartition(self):
 		return 0;
@@ -37,7 +47,7 @@ class Cube:
 		grids = [];
 		for att in self.dimensions:
 			grid_dim = [];
-			temp_part = partitions[att];
+			temp_part = self.attr_partition[att];
 			# If the range in this dimension is specified by the predicate
 			if att in predicate.keys():
 				pred = predicate[att];
@@ -47,7 +57,8 @@ class Cube:
 					# If the value is new, then insert it in the temp_dim before 
 					# finding grids.
 					if value not in temp_part:
-						temp_part.append(value).sort();
+						temp_part.append(value);
+						temp_part.sort();
 
 					index = temp_part.index(value);
 					size = len(temp_part);
@@ -61,7 +72,8 @@ class Cube:
 					# If the value is new, then insert it in the temp_dim before 
 					# finding grids.
 					if value not in temp_part:
-						temp_part.append(value).sort();
+						temp_part.append(value);
+						temp_part.sort();
 
 					index = temp_part.index(value);
 					grid_dim.append(temp_part[0]);
@@ -75,9 +87,11 @@ class Cube:
 					# If the value is new, then insert it in the temp_dim before 
 					# finding grids.
 					if value1 not in temp_part:
-						temp_part.append(value1).sort();
+						temp_part.append(value1);
+						temp_part.sort();
 					if value2 not in temp_part:
-						temp_part.append(value2).sort();
+						temp_part.append(value2);
+						temp_part.sort();
 
 					index1 = temp_part.index(value1);
 					index2 = temp_part.index(value2);
@@ -94,7 +108,7 @@ class Cube:
 
 		  # if the grids list is empty
 			if not grids:
-				grids = grid_dim();
+				grids = grid_dim;
 			else:
 				new_grids = list();
 				for grid in grids:
@@ -103,13 +117,41 @@ class Cube:
 				grids = new_grids;
 		return grids;
 					        
+	def rewritePredicate(self,predicate):
+		new_pred = dict();
+		size = len(predicate);
+		
+		i = 0;
+		while i < size:
+			values = [];
+			attr = predicate[i];
+			i += 1;
+
+			if predicate[i] == "BETWEEN":
+				i += 1;
+				values.append(predicate[i]);
+				i += 2;
+				values.append(predicate[i]);
+				i += 1;
+			else:
+				values.append(predicate[i]);
+				i += 1;
+				values.append(predicate[i]);
+				i += 1;
+			new_pred[attr] = values;
+
+		return new_pred;
+
+
 
 	# Get predicate like A:10,20, B: >= 10 
  	def answerQuery(self,predicate,cursor):
 		# get all grids in the cube that is within the prdicates
 		print("Start");
 		print predicate;
-		grids = self.findGrids(predicate);
+		grids = self.findGrids(self.rewritePredicate(predicate));
+		
+		print(grids);
 		print("END");
 		# find all partial aggregates
 		#answers = findPartialAnswer(grids,cursor);

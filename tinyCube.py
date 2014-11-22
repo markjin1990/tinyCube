@@ -53,7 +53,7 @@ def tinyCube(query):
 		
 		# Construct Cubes
 		for key,value in cube_partition.iteritems():
-			cubes[key] = Cube(key,attr_partition,cube_partition);
+			cubes[key] = Cube(key,attr_partition[key],cube_partition[key]);
 						
 	# Answer query
 	else:
