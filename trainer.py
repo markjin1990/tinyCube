@@ -8,7 +8,6 @@ def partAttr(train_set,attr_partition,ifTinyCube):
 	
 	# Get all predicate attributes for each query
 	# ['SUM(A)@T',[B,C,E]]
-	print('1');
 	for query in train_set:
 		attr_set = [];
 		query_set = query.split(" ");
@@ -95,7 +94,7 @@ def train(train_set,ifTinyCube,cube_partitions,attr_partition):
 	
 	#print(attr_partition);
 	
-	'''			
+			
 	for query in train_set:
 		ret = train_parser(query);
 		#print ret;
@@ -122,7 +121,7 @@ def train(train_set,ifTinyCube,cube_partitions,attr_partition):
 			
 	for key,value in att_dict_cube.iteritems():
 		att_dict_cube[key].sort();
-		'''
+	
 
 train_parser("SELECT SUM(A) FROM T WHERE A >= 10 AND B BETWEEN 0 AND 20 AND C = 10");
 

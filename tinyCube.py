@@ -8,7 +8,8 @@ import os.path
 # Local library
 import queryRewriter as rewriter
 import trainer as t
-import Cube as Cube
+from Cube import Cube
+
 
 # Constants
 _host_name = "localhost";
@@ -26,24 +27,9 @@ aggregates = [];
 attributes = dict();
 attr_partition = dict();
 cube_partition = dict();
+cubes = dict();
 
 def tinyCube(query):
-  # Connect to DBMS (MySQL)
-	db = MySQLdb.connect(host=_host_name,user=_user_name,db=_db_name);
-	cursor = db.cursor()
-
-  # Find all relations and attributes within a database
-	cursor.execute("SHOW TABLES");
-	data = cursor.fetchone();
-	for relation in data:
-		relations.append(relation);
-		cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+relation+"'");
-		data = cursor.fetchall();
-		att_list = [];
-		for att in data:
-			att_list.append(att[0]);
-		attributes[relation] = att_list;
-
 	# Check if query is for Training
 	check = query.split(' ');
 	if check[0] == _cmd_train:
@@ -61,11 +47,40 @@ def tinyCube(query):
 				train_set.append(line);
 
 		t.train(train_set,False,cube_partition,attr_partition);
-  	# Find Correlated Attributes From Workload
 
-	print(cube_partition);
-  # Construct Cubes
+		print(attr_partition);
+		print(cube_partition);
 		
+		# Construct Cubes
+		for key,value in cube_partition.iteritems():
+			cubes[key] = Cube(key,attr_partition,cube_partition);
+						
+	# Answer query
+	else:
+		print('sf');
+		sql_query = check[1:];			 
+		relation = sql_query[sql_query.index("FROM")+1];
+		aggregate = sql_query[sql_query.index("SELECT")+1];
+		predicate = sql_query[sql_query.index("WHERE")+1:];
+		mycube_key = aggregate+'@'+relation;
+		mycube = cubes[mycube_key];
+		mycube.answerQuery(predicate,cursor);
 
+# Connect to DBMS (MySQL)
+db = MySQLdb.connect(host=_host_name,user=_user_name,db=_db_name);
+cursor = db.cursor()
+
+# Find all relations and attributes within a database
+cursor.execute("SHOW TABLES");
+data = cursor.fetchone();
+for relation in data:
+	relations.append(relation);
+	cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+relation+"'");
+	data = cursor.fetchall();
+	att_list = [];
+	for att in data:
+			att_list.append(att[0]);
+	attributes[relation] = att_list;
 
 tinyCube('TRAIN ./config/default_workload.dat');
+tinyCube('ANSWER SELECT SUM(A) FROM T WHERE B >= 15');

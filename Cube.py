@@ -1,4 +1,6 @@
 # Class Cube
+# For each aggregate, e.g. SUM(A), we construct a big Cube which contains a set
+# of small tinyCubes
 
 class Cube:
 	aggregate = "";
@@ -7,23 +9,33 @@ class Cube:
 	cache = dict();
 	num_cache = 0;
 
-	def __init__(self, init_partition,aggregate):
-		partitions = init_partition;
-		dimensions = init_partition.keys();
+	def __init__(self,agg,attr_part,init_partition):
+		self.aggregate = agg;
+		self.partitions = init_partition;
+		self.dimensions = init_partition.keys();
+		
+	def ifAggregate(self,aggregate):
+		if self.aggregate == aggregate:
+			return True;
+		else:
+			return False;
+		
+	def checkAggregate(self):
+		return self.aggregate;
 
-  	def repartition():
+	def repartition(self):
 		return 0;
 
-	def computeFinalAnswer(answers):
+	def computeFinalAnswer(self,answers):
 		return 0;
 
 
-	def findPartialAnswer(grids,cursor):
+	def findPartialAnswer(self,grids,cursor):
 		return 0;
 
-	def findGrids(predicate):
+	def findGrids(self,predicate):
 		grids = [];
-		for att in dimensions:
+		for att in self.dimensions:
 			grid_dim = [];
 			temp_part = partitions[att];
 			# If the range in this dimension is specified by the predicate
@@ -90,14 +102,15 @@ class Cube:
 						new_grids.append(grid+'&'+item);
 				grids = new_grids;
 		return grids;
-
 					        
 
 	# Get predicate like A:10,20, B: >= 10 
- 	def answerQuery(predicate,cursor):
+ 	def answerQuery(self,predicate,cursor):
 		# get all grids in the cube that is within the prdicates
-		grids = findGrids(predicate);
-    
+		print("Start");
+		print predicate;
+		grids = self.findGrids(predicate);
+		print("END");
 		# find all partial aggregates
 		#answers = findPartialAnswer(grids,cursor);
 
