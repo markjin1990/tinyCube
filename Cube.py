@@ -4,6 +4,8 @@
 
 class Cube:
 	aggregate = "";
+	operation = "";
+	relation = "";
 	dimensions = [];
 	attr_partition = dict();
 	attr_group = dict();
@@ -11,6 +13,10 @@ class Cube:
 
 	def __init__(self,agg,attr_group,init_partition):
 		self.aggregate = agg;
+		info = agg.split("@");
+		self.operation = info[0];
+		self.relation = info[1];
+
 		self.attr_group = attr_group;
 		self.attr_partition = init_partition;
 		self.dimensions = self.attr_group.keys();
@@ -43,8 +49,53 @@ class Cube:
 	def computeFinalAnswer(self,answers):
 		return 0;
 
-	def askDatabase(self,key_set,cursor):
-		return [0];
+	def generateQuery(self,tinycube_id,key_set):
+		query_set = [];
+		attr_list = [];
+		
+		for key,value in self.attr_group.iteritems():
+			if value == tinycube_id:
+				attr_list.append(key);
+
+		for key in key_set:
+			query = 'SELECT ' + self.operation + ' FROM ' + self.relation + ' WHERE';
+			value_set = key.split("&");
+			i = 0;
+			for value in value_set:
+				# If the predicate value is like "10,23"
+				if "," in value:
+					vset = value.split(",");
+					this_attr = attr_list[i];
+					if i > 0:
+						query += " AND";
+					query += " (" + this_attr + " >= " + vset[0] + " AND " + this_attr + " < " + vset[1] +")";
+					i += 1;
+				# If the predicate value is like "10"
+				else:
+
+					this_attr = attr_list[i];
+					this_partition = self.attr_partition[this_attr];
+					if i > 0:
+						query += " AND";
+
+					# If this is the first value in partition of attribut, say 10 in partition of 
+					# attribut A: [10,15,23]. Then we have predicate A < 10, as we defined before
+					if this_partition.index(value) == 0:
+						query += " " + this_attr + " < " + value;
+					# Other wise it must be the last value 23. We have predicate A >= 23
+					else:
+						query += " " + this_attr + " >= " + value;
+					i += 1;
+
+			query_set.append(query);
+
+		return query_set;
+
+	def askDatabase(self,key_set,tinycube_id,cursor):
+		query_set = self.generateQuery(tinycube_id,key_set);
+		print query_set;
+		print len(query_set);
+		return query_set;
 
 	def findPartialAnswer(self,grids,cursor):
 		if not grids:
@@ -63,7 +114,7 @@ class Cube:
 				unknown_partial_aggr.append(key);
 
 		if unknown_partial_aggr:
-			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,cursor);
+			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id,cursor);
 
 		return cached_partial_result+unknown_partial_aggr_result;
 
@@ -196,20 +247,21 @@ class Cube:
  	def answerQuery(self,predicate,cursor):
 		# get all grids in the cube that is within the prdicates
 		print("Start");
-		print predicate;
+		#print predicate;
 		grids = self.findGrids(self.rewritePredicate(predicate));
 		
 
-		print(grids);
-		print("END");
+		#print(grids);
+		
 		# find all partial aggregates
 		answers = self.findPartialAnswer(grids,cursor);
 
     # Compute final answer (depend on actual aggregates)
-		#answer = computeFinalAnswer(answers);
+		# answer = computeFinalAnswer(answers);
 
 		# return final answer
 		#return sum(answer);
+		print("END");
 
 	
 

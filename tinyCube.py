@@ -48,8 +48,8 @@ def tinyCube(query):
 
 		t.train(train_set,False,cube_partition,attr_partition);
 
-		print(attr_partition);
-		print(cube_partition);
+		#print(attr_partition);
+		#print(cube_partition);
 		
 		# Construct Cubes
 		for key,value in cube_partition.iteritems():
@@ -57,7 +57,7 @@ def tinyCube(query):
 						
 	# Answer query
 	else:
-		print('sf');
+		#print('sf');
 		sql_query = check[1:];			 
 		relation = sql_query[sql_query.index("FROM")+1];
 		aggregate = sql_query[sql_query.index("SELECT")+1];
