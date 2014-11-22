@@ -41,80 +41,97 @@ class Cube:
 
 
 	def findPartialAnswer(self,grids,cursor):
+		for key in grids:
+			# Check which cube it belongs
+
 		return 0;
 
 	def findGrids(self,predicate):
 		grids = [];
-		for att in self.dimensions:
-			grid_dim = [];
-			temp_part = self.attr_partition[att];
-			# If the range in this dimension is specified by the predicate
-			if att in predicate.keys():
-				pred = predicate[att];
-				# A >= x
-				if pred[0] == ">=":
-					value = pred[1];
-					# If the value is new, then insert it in the temp_dim before 
-					# finding grids.
-					if value not in temp_part:
-						temp_part.append(value);
-						temp_part.sort();
+		# Check if the predicate attributes are in the same tinyCube
+		temp_set = set();
+		for keys in predicate.keys():
+			temp_set.add(attr_group[key]);
 
-					index = temp_part.index(value);
-					size = len(temp_part);
-					for i in range(index,size-1):
-						grid_dim.append(temp_part[i]+','+temp_part[i+1]);
-					grid_dim.append(temp_part[size-1]);
+		# All Attributes are in the same tinyCube
+		if len(temp_set) == 1:
+			for att in self.dimensions:
+				grid_dim = [];
+				temp_part = self.attr_partition[att];
+				# If the range in this dimension is specified by the predicate
+				if att in predicate.keys():
+					pred = predicate[att];
+					# A >= x
+					if pred[0] == ">=":
+						value = pred[1];
+						# If the value is new, then insert it in the temp_dim before 
+						# finding grids.
+						if value not in temp_part:
+							temp_part.append(value);
+							temp_part.sort();
 
-				# A < x
-				elif pred[0] == "<":
-					value = pred[1];
-					# If the value is new, then insert it in the temp_dim before 
-					# finding grids.
-					if value not in temp_part:
-						temp_part.append(value);
-						temp_part.sort();
+						index = temp_part.index(value);
+						size = len(temp_part);
+						for i in range(index,size-1):
+							grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+						grid_dim.append(temp_part[size-1]);
 
-					index = temp_part.index(value);
-					grid_dim.append(temp_part[0]);
-					for i in range(1,index-1):
-						grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+					# A < x
+					elif pred[0] == "<":
+						value = pred[1];
+						# If the value is new, then insert it in the temp_dim before 
+						# finding grids.
+						if value not in temp_part:
+							temp_part.append(value);
+							temp_part.sort();
 
-				# A BETWEEN x AND y (x <= A < y)
+						index = temp_part.index(value);
+						grid_dim.append(temp_part[0]);
+						for i in range(1,index-1):
+							grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+
+					# A BETWEEN x AND y (x <= A < y)
+					else:
+						value1 = pred[0];
+						value2 = pred[1];
+						# If the value is new, then insert it in the temp_dim before 
+						# finding grids.
+						if value1 not in temp_part:
+							temp_part.append(value1);
+							temp_part.sort();
+						if value2 not in temp_part:
+							temp_part.append(value2);
+							temp_part.sort();
+
+						index1 = temp_part.index(value1);
+						index2 = temp_part.index(value2);
+						for i in range(index1,index2-1):
+							grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+
+				# If the range in this dimension is NOT specified by the predicate
 				else:
-					value1 = pred[0];
-					value2 = pred[1];
-					# If the value is new, then insert it in the temp_dim before 
-					# finding grids.
-					if value1 not in temp_part:
-						temp_part.append(value1);
-						temp_part.sort();
-					if value2 not in temp_part:
-						temp_part.append(value2);
-						temp_part.sort();
-
-					index1 = temp_part.index(value1);
-					index2 = temp_part.index(value2);
-					for i in range(index1,index2-1):
+					size = len(temp_part);
+					grid_dim.append(temp_part[0]);
+					grid_dim.append(temp_part[size-1]);
+					for i in range(1,size-2):
 						grid_dim.append(temp_part[i]+','+temp_part[i+1]);
 
-			# If the range in this dimension is NOT specified by the predicate
-			else:
-				size = len(temp_part);
-				grid_dim.append(temp_part[0]);
-				grid_dim.append(temp_part[size-1]);
-				for i in range(1,size-2):
-					grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+			  # if the grids list is empty
+				if not grids:
+					grids = grid_dim;
+				else:
+					new_grids = list();
+					for grid in grids:
+						for item in grid_dim:
+							new_grids.append(grid+'&'+item);
+					grids = new_grids;
 
-		  # if the grids list is empty
-			if not grids:
-				grids = grid_dim;
-			else:
-				new_grids = list();
-				for grid in grids:
-					for item in grid_dim:
-						new_grids.append(grid+'&'+item);
-				grids = new_grids;
+		# They are in the different tinyCubes, 
+		# which means no previous predicate can be levaraged
+		else:
+			
+
+		
 		return grids;
 					        
 	def rewritePredicate(self,predicate):
@@ -151,10 +168,11 @@ class Cube:
 		print predicate;
 		grids = self.findGrids(self.rewritePredicate(predicate));
 		
+
 		print(grids);
 		print("END");
 		# find all partial aggregates
-		#answers = findPartialAnswer(grids,cursor);
+		answers = findPartialAnswer(grids,cursor);
 
     # Compute final answer (depend on actual aggregates)
 		#answer = computeFinalAnswer(answers);
