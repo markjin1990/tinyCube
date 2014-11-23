@@ -3,6 +3,7 @@
 # of small tinyCubes
 
 import trainer as t
+import time
 
 class Cube:
 	aggregate = "";
@@ -62,19 +63,19 @@ class Cube:
 		for key in key_set:
 			query = 'SELECT ' + self.operation + ' FROM ' + self.relation + ' WHERE';
 			value_set = key.split("&");
-			i = 0;
-			for value in value_set:
+			
+			for i,value in enumerate(value_set):
 				# If the predicate value is like "10,23"
 				if "," in value:
 					vset = value.split(",");
 					this_attr = attr_list[i];
 					if i > 0:
 						query += " AND";
-					query += " (" + this_attr + " >= " + vset[0] + " AND " + this_attr + " < " + vset[1] +")";
-					i += 1;
+					query += " (" + this_attr + " >= " + str(vset[0]) + " AND " + this_attr + " < " + str(vset[1]) +")";
+
 				# If the predicate value is like "10"
 				else:
-
+					value = t.convert_to_num(value);
 					this_attr = attr_list[i];
 					this_partition = self.attr_partition[this_attr];
 					if i > 0:
@@ -83,11 +84,10 @@ class Cube:
 					# If this is the first value in partition of attribut, say 10 in partition of 
 					# attribut A: [10,15,23]. Then we have predicate A < 10, as we defined before
 					if this_partition.index(value) == 0:
-						query += " " + this_attr + " < " + value;
+						query += " " + this_attr + " < " + str(value);
 					# Other wise it must be the last value 23. We have predicate A >= 23
 					else:
-						query += " " + this_attr + " >= " + value;
-					i += 1;
+						query += " " + this_attr + " >= " + str(value);
 
 			query_set.append(query);
 
@@ -95,10 +95,15 @@ class Cube:
 
 	def askDatabase(self,key_set,tinycube_id,cursor):
 		query_set = self.generateQuery(tinycube_id,key_set);
+		operation = ';'.join(query_set);
 		result_set = [];
-		for query in query_set:
-			cursor.execute(query);
-			result_set.append(cursor.fetchall());
+		for index,result in enumerate(cursor.execute(operation, multi=True)):
+			query_result = result.fetchall();
+			query_val = query_result[0][0];
+			# Save the partial aggregate in the tinycube grid
+			self.tinyCubes[tinycube_id][key_set[index]] = query_val;
+			print "Cached " + key_set[index] + " " + str(query_val);
+			result_set.append(query_val);
 		return result_set;
 
 	def findPartialAnswer(self,grids,cursor):
@@ -113,6 +118,7 @@ class Cube:
 		for key in grids[1:]:
 			# Check which cube it belongs
 			if key in tinyCube.keys():
+				print "Find Cached answer on " + key;
 				cached_partial_result.append(tinyCube[key]);
 			else:
 				unknown_partial_aggr.append(key);
@@ -257,24 +263,32 @@ class Cube:
 
 
 
+
 	# Get predicate like A:10,20, B: >= 10 
  	def answerQuery(self,predicate,cursor):
 		# get all grids in the cube that is within the prdicates
 		print("Start");
 		#print predicate;
+		current_milli_time = lambda: int(round(time.time() * 1000));
+		time1 = current_milli_time();
+
 		grids = self.findGrids(self.rewritePredicate(predicate));
 		
 		print "grids" + str(grids);
 		
 		# find all partial aggregates
 		answers = self.findPartialAnswer(grids,cursor);
+		ret = sum(answers);
+		time2 = current_milli_time();
 
+		print "Lantency" + str(time2-time1);
     # Compute final answer (depend on actual aggregates)
 		# answer = computeFinalAnswer(answers);
 
 		# return final answer
 		#return sum(answer);
 		print("END");
+		return ret;
 
 	
 

@@ -2,7 +2,7 @@
 # will return accurate answer for simplicity)
 
 # Global Library
-import MySQLdb
+import mysql.connector
 import os.path
 
 # Local library
@@ -64,10 +64,10 @@ def tinyCube(query):
 		predicate = sql_query[sql_query.index("WHERE")+1:];
 		mycube_key = aggregate+'@'+relation;
 		mycube = cubes[mycube_key];
-		mycube.answerQuery(predicate,cursor);
+		print mycube.answerQuery(predicate,cursor);
 
 # Connect to DBMS (MySQL)
-db = MySQLdb.connect(host=_host_name,user=_user_name,db=_db_name);
+db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
 cursor = db.cursor()
 
 # Turn off caching in MySQL for the purpose of experiment
@@ -86,4 +86,5 @@ for relation in data:
 	attributes[relation] = att_list;
 
 tinyCube('TRAIN ./config/default_workload.dat');
+tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');
 tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');

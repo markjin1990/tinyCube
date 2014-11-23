@@ -5,5 +5,5 @@ To start TinyCube Client, Run:
 	./START_CLIENT
 
 ERROR
-1. ImportError: No module named MySQLdb
-   For Ubuntu User: run "sudo apt-get install python-mysqldb"
+1. ImportError: No module named mysql.connector
+	Make sure Mysql python connector is installed. Check http://dev.mysql.com/downloads/connector/python/
