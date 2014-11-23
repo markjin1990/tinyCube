@@ -237,19 +237,7 @@ class Cube:
 			values = [];
 			attr = predicate[i];
 			i += 1;
-			'''
-			if predicate[i] == "BETWEEN":
-				i += 1;
-				values.append(predicate[i]);
-				i += 2;
-				values.append(predicate[i]);
-				i += 1;
-			else:
-				values.append(predicate[i]);
-				i += 1;
-				values.append(predicate[i]);
-				i += 1;
-			'''
+		
 			values.append(predicate[i]);
 			i += 1;
 			values.append(t.convert_to_num(predicate[i]));
