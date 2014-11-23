@@ -15,7 +15,7 @@ from Cube import Cube
 _host_name = "localhost";
 _user_name = "root";
 _db_name = "tinyCube";
-_relation_name = "TestRelation";
+_relation_name = "KDD";
 _cmd_train = "TRAIN";
 
 # Files
@@ -48,8 +48,8 @@ def tinyCube(query):
 
 		t.train(train_set,False,cube_partition,attr_partition);
 
-		#print(attr_partition);
-		#print(cube_partition);
+		print(attr_partition);
+		print(cube_partition);
 		
 		# Construct Cubes
 		for key,value in cube_partition.iteritems():
@@ -70,6 +70,9 @@ def tinyCube(query):
 db = MySQLdb.connect(host=_host_name,user=_user_name,db=_db_name);
 cursor = db.cursor()
 
+# Turn off caching in MySQL for the purpose of experiment
+cursor.execute("SET SESSION query_cache_type = OFF");
+
 # Find all relations and attributes within a database
 cursor.execute("SHOW TABLES");
 data = cursor.fetchone();
@@ -83,4 +86,4 @@ for relation in data:
 	attributes[relation] = att_list;
 
 tinyCube('TRAIN ./config/default_workload.dat');
-tinyCube('ANSWER SELECT SUM(A) FROM T WHERE B >= 15');
+tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');

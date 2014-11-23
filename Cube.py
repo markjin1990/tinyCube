@@ -2,6 +2,8 @@
 # For each aggregate, e.g. SUM(A), we construct a big Cube which contains a set
 # of small tinyCubes
 
+import trainer as t
+
 class Cube:
 	aggregate = "";
 	operation = "";
@@ -93,9 +95,11 @@ class Cube:
 
 	def askDatabase(self,key_set,tinycube_id,cursor):
 		query_set = self.generateQuery(tinycube_id,key_set);
-		print query_set;
-		print len(query_set);
-		return query_set;
+		result_set = [];
+		for query in query_set:
+			cursor.execute(query);
+			result_set.append(cursor.fetchall());
+		return result_set;
 
 	def findPartialAnswer(self,grids,cursor):
 		if not grids:
@@ -139,6 +143,7 @@ class Cube:
 				if value == tinycube_id:
 					tinycube_attr.append(key);
 
+
 			for att in tinycube_attr:
 				grid_dim = [];
 				temp_part = self.attr_partition[att];
@@ -171,8 +176,9 @@ class Cube:
 
 						index = temp_part.index(value);
 						grid_dim.append(temp_part[0]);
-						for i in range(1,index-1):
-							grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+
+						for i in range(0,index):
+							grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
 
 					# A BETWEEN x AND y (x <= A < y)
 					else:
@@ -189,8 +195,10 @@ class Cube:
 
 						index1 = temp_part.index(value1);
 						index2 = temp_part.index(value2);
-						for i in range(index1,index2-1):
-							grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+
+						for i in range(index1,index2):
+							grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
+
 
 				# If the range in this dimension is NOT specified by the predicate
 				else:
@@ -213,7 +221,11 @@ class Cube:
 			# Inset tinycube id at the beginning of the 
 			# grids to benefit findPartialAggregates()
 			grids.insert(0,tinycube_id);
-		
+
+		# Attributes are not in same tinyCube which we will send the query directly 
+		# to database; 
+		else:
+			print "ERROR";
 		return grids;
 					        
 	def rewritePredicate(self,predicate):
@@ -225,7 +237,7 @@ class Cube:
 			values = [];
 			attr = predicate[i];
 			i += 1;
-
+			'''
 			if predicate[i] == "BETWEEN":
 				i += 1;
 				values.append(predicate[i]);
@@ -237,8 +249,22 @@ class Cube:
 				i += 1;
 				values.append(predicate[i]);
 				i += 1;
-			new_pred[attr] = values;
-
+			'''
+			values.append(predicate[i]);
+			i += 1;
+			values.append(t.convert_to_num(predicate[i]));
+			i += 2;
+			# Attribute has not appeared
+			if attr not in new_pred.keys():
+				new_pred[attr] = values;
+			# Attribute has appeared, which means it must be like a =< A < b
+			else:
+				tempval =  new_pred[attr];
+				val1 = tempval[1];
+				val2 = values[1];
+				newval = [val1,val2];
+				newval.sort();
+				new_pred[attr] = newval;
 		return new_pred;
 
 
@@ -250,8 +276,7 @@ class Cube:
 		#print predicate;
 		grids = self.findGrids(self.rewritePredicate(predicate));
 		
-
-		#print(grids);
+		print "grids" + str(grids);
 		
 		# find all partial aggregates
 		answers = self.findPartialAnswer(grids,cursor);
