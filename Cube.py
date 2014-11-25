@@ -11,6 +11,7 @@ class Cube:
 	relation = "";
 	dimensions = [];
 	attr_partition = dict();
+	temp_attr_partition = dict();
 	attr_group = dict();
 	tinyCubes = [];
 	if_repartition = False;
@@ -188,10 +189,13 @@ class Cube:
 				if value == tinycube_id:
 					tinycube_attr.append(key);
 
+			# Initialize temp_attr_partition
+			if self.if_repartition:
+				self.temp_attr_partition = self.attr_partition.copy(); 
 
 			for att in tinycube_attr:
 				grid_dim = [];
-				temp_part = self.attr_partition[att];
+				temp_part = list(self.attr_partition[att]);
 				# If the range in this dimension is specified by the predicate
 				if att in predicate.keys():
 					pred = predicate[att];
@@ -265,9 +269,16 @@ class Cube:
 							new_grids.append(str(grid)+"&"+str(item));
 					grids = new_grids;
 
+				# If repartition, update temp_attr_partition so that attr_partition will be updated
+				# after this query processing
+				if self.if_repartition:
+					self.temp_attr_partition[att] = temp_part;
+
 			# Inset tinycube id at the beginning of the 
 			# grids to benefit findPartialAggregates()
 			grids.insert(0,tinycube_id);
+
+			
 
 		# Attributes are not in same tinyCube which we will send the query directly 
 		# to database; 
@@ -331,6 +342,13 @@ class Cube:
 		# return final answer
 		#return sum(answer);
 		print("END");
+
+		# In the end, if repartition, then update the partition information
+		if self.if_repartition:
+			self.attr_partition = self.temp_attr_partition.copy();
+			self.temp_attr_partition.clear();
+			print self.attr_partition
+
 		return ret;
 
 	
