@@ -13,12 +13,14 @@ class Cube:
 	attr_partition = dict();
 	attr_group = dict();
 	tinyCubes = [];
+	if_repartition = False;
 
-	def __init__(self,agg,attr_group,init_partition):
+	def __init__(self,agg,if_repartition,attr_group,init_partition):
 		self.aggregate = agg;
 		info = agg.split("@");
 		self.operation = info[0];
 		self.relation = info[1];
+		self.if_repartition = if_repartition;
 
 		self.attr_group = attr_group;
 		self.attr_partition = init_partition;
@@ -33,6 +35,9 @@ class Cube:
 			return True;
 		else:
 			return False;
+
+	def ifRepartition(self):
+		return self.if_repartition;
 		
 	def checkAggregate(self):
 		return self.aggregate;
@@ -51,6 +56,36 @@ class Cube:
 
 	def computeFinalAnswer(self,answers):
 		return 0;
+
+	def checkIfGridInOldPartition(self,grid_key,tinycube_id):
+		value_set = grid_key.split("&");
+		attr_list = [];
+		
+		for key,value in self.attr_group.iteritems():
+			if value == tinycube_id:
+				attr_list.append(key);
+			
+		for i,value in enumerate(value_set):
+			# If the predicate value is like "10,23"
+			if "," in value:
+				vset = value.split(",");
+				this_attr = attr_list[i];
+				value1 = vset[0];
+				value2 = vset[1];
+				# If this value is not in the origial partition return False
+				# Same as following False
+				if value1 not in self.attr_partition[this_attr]:
+					return False;
+				if value2 not in self.attr_partition[this_attr]:
+					return False;
+			else:
+				value = t.convert_to_num(value);
+				this_attr = attr_list[i];
+				if value not in self.attr_partition[this_attr]:
+					return False;
+		# No one returns False, meaning this grid belongs to old partition
+		return True;
+
 
 	def generateQuery(self,tinycube_id,key_set):
 		query_set = [];
@@ -100,9 +135,11 @@ class Cube:
 		for index,result in enumerate(cursor.execute(operation, multi=True)):
 			query_result = result.fetchall();
 			query_val = query_result[0][0];
-			# Save the partial aggregate in the tinycube grid
-			self.tinyCubes[tinycube_id][key_set[index]] = query_val;
-			print "Cached " + key_set[index] + " " + str(query_val);
+			# Save the partial aggregate in the tinycube grid if we want repartition
+			# or (we don't allow repartition and this grids belongs to old grid) 
+			if (self.if_repartition == True) or (self.if_repartition == False and self.checkIfGridInOldPartition(key_set[index],tinycube_id)):
+				self.tinyCubes[tinycube_id][key_set[index]] = query_val;
+				print "Cached " + key_set[index] + " " + str(query_val);
 			result_set.append(query_val);
 		return result_set;
 
@@ -128,6 +165,8 @@ class Cube:
 
 		return cached_partial_result+unknown_partial_aggr_result;
 
+	# Given predicate, produce a set of girds according to the partition
+	# on the tinyCube.
 	def findGrids(self,predicate):
 		grids = [];
 		# Check if the predicate attributes are in the same tinyCube
@@ -186,7 +225,7 @@ class Cube:
 						for i in range(0,index):
 							grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
 
-					# A BETWEEN x AND y (x <= A < y)
+					# x<=A< y
 					else:
 						value1 = pred[0];
 						value2 = pred[1];
@@ -217,6 +256,8 @@ class Cube:
 			  # if the grids list is empty
 				if not grids:
 					grids = grid_dim;
+				# else add a new dimension for all the grids
+				# Thus the number of grids increase exponentially
 				else:
 					new_grids = list();
 					for grid in grids:
@@ -234,6 +275,10 @@ class Cube:
 			print "ERROR";
 		return grids;
 					        
+
+
+	# Put predicate into dictionary
+	# [A,>=,5,AND,B,<,10] => [A:[>=,5], B:[<,10]]
 	def rewritePredicate(self,predicate):
 		new_pred = dict();
 		size = len(predicate);
@@ -262,9 +307,7 @@ class Cube:
 		return new_pred;
 
 
-
-
-	# Get predicate like A:10,20, B: >= 10 
+	# Get predicate like [A,>=,5,AND,B,<,10]
  	def answerQuery(self,predicate,cursor):
 		# get all grids in the cube that is within the prdicates
 		print("Start");
