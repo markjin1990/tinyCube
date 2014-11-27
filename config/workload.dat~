@@ -1,3 +1,7 @@
-SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes >= 100 AND dst_bytes < 200 AND count >= 5;
-SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes >= 220 AND count >= 15 AND count < 20;
-SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24;
+SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes >= 100 AND dst_bytes < 200 AND count >= 5
+SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes >= 220 AND count >= 15 AND count < 20
+SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24
+SELECT SUM(src_bytes) FROM KDD WHERE srv_count >= 1.0 AND serror_rate < 2.0
+SELECT SUM(src_bytes) FROM KDD WHERE srv_count >= 1.0 AND serror_rate < 2.5
+SELECT SUM(src_bytes) FROM KDD WHERE srv_count >= 1.2 AND serror_rate < 3.0
+

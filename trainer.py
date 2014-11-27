@@ -12,12 +12,14 @@ def convert_to_num(s):
 		return float(s)
 
 def getSetOFfTwo(mylist):
+	if len(mylist) == 1:
+		return [];
 	mylist = list(set(mylist));
 	setoftwo = [];
 	for i1,value1 in enumerate(mylist):
-		for i1,value2 in enumerate(mylist):
+		for i2,value2 in enumerate(mylist):
 			if i1>i2:
-				sefoftwo.append([value1,value2]);
+				setoftwo.append([value1,value2]);
 	return setoftwo;
 
 
@@ -29,44 +31,56 @@ def spectralClustering(query_attr_set,cluster_num):
 	# for clustering later
 	aggr_predicate_attr_list = [];
 
+	#print query_attr_set
+
 	for item in query_attr_set:
 		if item[0] in aggr_list:
 			i = aggr_list.index(item[0]);
 			aggr_predicate_attr_list[i].append(item[1]);
 		else:
 			aggr_list.append(item[0]);
-			aggr_predicate_attr_list[-1].append(item[1]);
+			aggr_predicate_attr_list.append([item[1]]);
+
+	#print aggr_predicate_attr_list;
 
 	group_info = dict();
 	for index,predicate_attr_set in enumerate(aggr_predicate_attr_list):
-		attr_set = set();
+		#print predicate_attr_set;
+		attr_set = list();
 		for sub_attr_set in predicate_attr_set:
-			attr_set.union(set(sub_attr_set));
-		attr_set = list(attr_set);
+			attr_set.extend(sub_attr_set);
+		print attr_set;
+		attr_set = list(set(attr_set));
 
 		# Create a similarity graph
 		attr_num = len(attr_set);
 		W = Matrix(attr_num,attr_num);
 
+		print attr_set
+
 		# Update the similarity graph
 		for sub_attr_set in predicate_attr_set:
 			retlist = getSetOFfTwo(sub_attr_set);
-			for pair in retlist:
-				index1 = attr_set.index(pair[0]);
-				index2 = attr_set.index(pair[1]);
-				W.addOne(index1,index2);
-				W.addOne(index2,index1);
+			if retlist:
+				for pair in retlist:
+					index1 = attr_set.index(pair[0]);
+					index2 = attr_set.index(pair[1]);
+					W.addOne(index1,index2);
+					W.addOne(index2,index1);
+		print W.toString();
 
 
 def groupAttr(train_set,attr_partition,ifTinyCube):
 	query_attr_set = [];
 	
+	print train_set;
+
 	# Get all predicate attributes for each query
 	# ['SUM(A)@T',[B,C,E]]
 	for query in train_set:
 		attr_set = [];
 		query_set = query.split(" ");
-		print query_set;
+		#print query_set;
 
 		relation = query_set[query_set.index("FROM")+1];
 		aggregate = query_set[query_set.index("SELECT")+1];

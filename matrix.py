@@ -28,3 +28,6 @@ class Matrix:
 
 	def getValue(self,row,col):
 		return self.matrix[row][col];
+
+	def toString(self):
+		return self.matrix;

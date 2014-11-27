@@ -46,7 +46,7 @@ def tinyCube(query):
 				line = line.replace("\n","");
 				train_set.append(line);
 
-		t.train(train_set,False,cube_partition,attr_partition);
+		t.train(train_set,True,cube_partition,attr_partition);
 
 		print(attr_partition);
 		print(cube_partition);
@@ -64,7 +64,7 @@ def tinyCube(query):
 		predicate = sql_query[sql_query.index("WHERE")+1:];
 		mycube_key = aggregate+'@'+relation;
 		mycube = cubes[mycube_key];
-		print mycube.answerQuery(predicate,cursor);
+		#print mycube.answerQuery(predicate,cursor);
 
 # Connect to DBMS (MySQL)
 db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
