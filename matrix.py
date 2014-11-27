@@ -31,3 +31,28 @@ class Matrix:
 
 	def toString(self):
 		return self.matrix;
+
+	def d_i(self,i):
+		return sum(matrix[i]);
+
+	def D():
+		if col != row:
+			return;
+		else:
+			D_matrix = [];
+			for i in range(0,self.row):
+				newrow = [];
+				for j in range(0,self.col):
+					if i == j:
+						newrow.append(self.d_i(i));
+					else:
+						newrow.append(0);
+				D_matrix.append(newrow);
+			return D_matrix;
+
+	def L():
+		if col != row:
+			return;
+		else:
+			return np.subtract(self.D_matrix, self.matrix);
+			
