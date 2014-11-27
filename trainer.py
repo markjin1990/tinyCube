@@ -66,6 +66,7 @@ def groupAttr(train_set,attr_partition,ifTinyCube):
 	for query in train_set:
 		attr_set = [];
 		query_set = query.split(" ");
+		print query_set;
 
 		relation = query_set[query_set.index("FROM")+1];
 		aggregate = query_set[query_set.index("SELECT")+1];
@@ -88,7 +89,8 @@ def groupAttr(train_set,attr_partition,ifTinyCube):
 			if query_set:
 				query_set.pop(0);
 
-			query_set = list(set(query_set));
+		# The the set of attributes for each query
+		attr_set = list(set(attr_set));
 		
 		# We get ["SUM(A)@T",[B,C]]
 		# 			 ["SUM(A)@T",[B,E]]
