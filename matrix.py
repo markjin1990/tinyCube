@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 
 class Matrix:
 	matrix = [];
@@ -55,4 +56,8 @@ class Matrix:
 			return;
 		else:
 			return np.subtract(self.D(), self.matrix);
+
+	def L_norm(self):
+		inv_D = np.linalg.inv(np.array(self.D()));
+		return np.dot(inv_D,self.L());
 			

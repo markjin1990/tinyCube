@@ -4,6 +4,9 @@
 # attribute_2:[value1,value2],...]]
 
 from matrix import Matrix
+import numpy as np
+import scipy as sp
+from sklearn.cluster import KMeans
 
 def convert_to_num(s):
 	try:
@@ -54,7 +57,7 @@ def spectralClustering(query_attr_set,cluster_num):
 
 		# Create a similarity graph
 		attr_num = len(attr_set);
-		W = Matrix(attr_num,attr_num);
+		SimGraph = Matrix(attr_num,attr_num);
 
 		# print attr_set
 
@@ -65,12 +68,51 @@ def spectralClustering(query_attr_set,cluster_num):
 				for pair in retlist:
 					index1 = attr_set.index(pair[0]);
 					index2 = attr_set.index(pair[1]);
-					W.addOne(index1,index2);
-					W.addOne(index2,index1);
-		print W.toString();
-		print W.D();
-		print W.L();
+					SimGraph.addOne(index1,index2);
+					#SimGraph.addOne(index1,index1);
+					SimGraph.addOne(index2,index1);
+					#SimGraph.addOne(index2,index2);
+		
 
+		'''
+		This is one way for spectralClustering which is 
+		using properties of graph Laplacian
+		''' 
+		# Get Graph Laplacian
+		ret = np.linalg.eigh(SimGraph.L());
+		
+		# Compute eigenvectors and eigenvalues of Laplacian
+		egval = ret[0];
+		egvec = ret[1];
+
+
+
+		# new test data
+		data = [];
+		for i in range(0,attr_num):
+			newdat = [];
+			for j in range(0,cluster_num):
+				newdat.append(egvec[i][j]);
+			data.append(newdat);
+
+
+
+		# K-means to find cluster
+		est = KMeans(k=cluster_num);
+		est.fit(data);
+		labels = est.labels_;
+		
+
+
+		# Create sub grouping map
+		subGroupMap = dict();
+		for i in range(0,attr_num):
+			subGroupMap[attr_set[i]] = labels[i];
+
+		# Create final grouping decision for this aggregation
+		group_info[aggr_list[index]] = subGroupMap;
+
+	return group_info;
 
 def groupAttr(train_set,attr_partition,ifTinyCube):
 	query_attr_set = [];
@@ -136,7 +178,8 @@ def groupAttr(train_set,attr_partition,ifTinyCube):
 				attr_partition[key] = attr_dict;
 	# We enable tinyCubes
 	else:
-		attr_partition = spectralClustering(query_attr_set,2);
+		for key,value in spectralClustering(query_attr_set,3).iteritems():
+			attr_partition[key] = value;
 
 
 def train_parser(query):

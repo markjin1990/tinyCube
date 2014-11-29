@@ -4,6 +4,12 @@ To start TinyCube Module, Run:
 To start TinyCube Client, Run:
 	./START_CLIENT
 
+Required Libraries:
+	Numpy, Scipy:
+		sudo apt-get install python-numpy python-scipy
+	Sklearn:
+		sudo apt-get install python-sklearn
+
 ERROR
 1. ImportError: No module named mysql.connector
 	Make sure Mysql python connector is installed. Check http://dev.mysql.com/downloads/connector/python/
