@@ -9,7 +9,18 @@ Required Libraries:
 		sudo apt-get install python-numpy python-scipy
 	Sklearn:
 		sudo apt-get install python-sklearn
+	Qt4:
+
+	mysql.connector:
 
 ERROR
 1. ImportError: No module named mysql.connector
 	Make sure Mysql python connector is installed. Check http://dev.mysql.com/downloads/connector/python/
+
+2. ImportError: No module named PyQt4.QtCore
+	Make sure qt is installed
+	sudo apt-get install qt4-qmake
+	sudo apt-get install python-qt4
+	When errors occur while installing Qt4, try update the packages:
+	sudo apt-get -f dist-upgrade
+	sudo dpkg -a --configure
