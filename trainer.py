@@ -49,14 +49,14 @@ def spectralClustering(query_attr_set,cluster_num):
 		attr_set = list();
 		for sub_attr_set in predicate_attr_set:
 			attr_set.extend(sub_attr_set);
-		print attr_set;
+		#print attr_set;
 		attr_set = list(set(attr_set));
 
 		# Create a similarity graph
 		attr_num = len(attr_set);
 		W = Matrix(attr_num,attr_num);
 
-		print attr_set
+		# print attr_set
 
 		# Update the similarity graph
 		for sub_attr_set in predicate_attr_set:
@@ -68,6 +68,8 @@ def spectralClustering(query_attr_set,cluster_num):
 					W.addOne(index1,index2);
 					W.addOne(index2,index1);
 		print W.toString();
+		print W.D();
+		print W.L();
 
 
 def groupAttr(train_set,attr_partition,ifTinyCube):

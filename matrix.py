@@ -33,10 +33,10 @@ class Matrix:
 		return self.matrix;
 
 	def d_i(self,i):
-		return sum(matrix[i]);
+		return sum(self.matrix[i]);
 
-	def D():
-		if col != row:
+	def D(self):
+		if self.col != self.row:
 			return;
 		else:
 			D_matrix = [];
@@ -50,9 +50,9 @@ class Matrix:
 				D_matrix.append(newrow);
 			return D_matrix;
 
-	def L():
-		if col != row:
+	def L(self):
+		if self.col != self.row:
 			return;
 		else:
-			return np.subtract(self.D_matrix, self.matrix);
+			return np.subtract(self.D(), self.matrix);
 			
