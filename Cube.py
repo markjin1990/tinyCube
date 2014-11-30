@@ -4,6 +4,14 @@
 
 import trainer as t
 import time
+import threading
+import Queue
+import mysql.connector
+
+_host_name = "localhost";
+_user_name = "root";
+_db_name = "tinyCube";
+_worker_num = 10;
 
 class Cube:
 	aggregate = "";
@@ -15,6 +23,9 @@ class Cube:
 	attr_group = dict();
 	tinyCubes = [];
 	if_repartition = False;
+
+	temp_work = [];
+	q = Queue.Queue();
 
 	def __init__(self,agg,if_repartition,attr_group,init_partition):
 		self.aggregate = agg;
@@ -129,7 +140,37 @@ class Cube:
 
 		return query_set;
 
-	def askDatabase(self,key_set,tinycube_id,cursor):
+	def askDBworker(self,key_set,tinycube_id,lock):
+	
+		lock.acquire();
+		newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
+		cursor = newdb.cursor();
+		index = len(self.temp_work)-1;
+		while index >= 0:
+
+			subquery = self.temp_work.pop();
+			lock.release();
+			cursor.execute(subquery);
+
+			query_result = cursor.fetchall();
+			query_val = query_result[0][0];
+			if (self.if_repartition == True) or (self.if_repartition == False and self.checkIfGridInOldPartition(key_set[index],tinycube_id)):
+					lock.acquire();
+					self.tinyCubes[tinycube_id][key_set[index]] = query_val;
+					lock.release();
+					print "Cached " + key_set[index] + " " + str(query_val);
+			self.q.put(query_val);
+			lock.acquire();
+			index = len(self.temp_work)-1;
+
+		lock.release();
+		cursor.close();
+		return;
+
+
+
+	def askDatabase(self,key_set,tinycube_id):
+		'''
 		query_set = self.generateQuery(tinycube_id,key_set);
 		operation = ';'.join(query_set);
 		result_set = [];
@@ -143,8 +184,31 @@ class Cube:
 				print "Cached " + key_set[index] + " " + str(query_val);
 			result_set.append(query_val);
 		return result_set;
+		'''
+		
+		query_set = self.generateQuery(tinycube_id,key_set);
+		self.temp_work = list(query_set);
+		lock = threading.Lock();
 
-	def findPartialAnswer(self,grids,cursor):
+
+		result_set = [];
+		threads = []
+		for i in range(0,_worker_num):
+			t = threading.Thread(target=self.askDBworker,args=(key_set,tinycube_id,lock))
+			threads.append(t)
+			t.start()
+
+		# Wait for all threads return	
+		for i in range(0,_worker_num):
+			threads[i].join();
+
+		# Get all partial aggregates
+		while not self.q.empty():
+			result_set.append(self.q.get());
+
+		return result_set;
+
+	def findPartialAnswer(self,grids):
 		if not grids:
 			return 0;
 
@@ -162,7 +226,7 @@ class Cube:
 				unknown_partial_aggr.append(key);
 
 		if unknown_partial_aggr:
-			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id,cursor);
+			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id);
 
 		return cached_partial_result+unknown_partial_aggr_result;
 
@@ -319,7 +383,7 @@ class Cube:
 
 
 	# Get predicate like [A,>=,5,AND,B,<,10]
- 	def answerQuery(self,predicate,cursor):
+ 	def answerQuery(self,predicate):
 		# get all grids in the cube that is within the prdicates
 		print("Start");
 		#print predicate;
@@ -331,7 +395,7 @@ class Cube:
 		print "grids" + str(grids);
 		
 		# find all partial aggregates
-		answers = self.findPartialAnswer(grids,cursor);
+		answers = self.findPartialAnswer(grids);
 		ret = sum(answers);
 		time2 = current_milli_time();
 

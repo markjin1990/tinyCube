@@ -178,7 +178,7 @@ def groupAttr(train_set,attr_partition,ifTinyCube):
 				attr_partition[key] = attr_dict;
 	# We enable tinyCubes
 	else:
-		for key,value in spectralClustering(query_attr_set,3).iteritems():
+		for key,value in spectralClustering(query_attr_set,2).iteritems():
 			attr_partition[key] = value;
 
 

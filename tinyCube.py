@@ -64,14 +64,16 @@ def tinyCube(query):
 		predicate = sql_query[sql_query.index("WHERE")+1:];
 		mycube_key = aggregate+'@'+relation;
 		mycube = cubes[mycube_key];
-		#print mycube.answerQuery(predicate,cursor);
+		print mycube.answerQuery(predicate);
 
 # Connect to DBMS (MySQL)
 db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
-cursor = db.cursor()
+cursor = db.cursor();
+
 
 # Turn off caching in MySQL for the purpose of experiment
 cursor.execute("SET SESSION query_cache_type = OFF");
+cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
 
 # Find all relations and attributes within a database
 cursor.execute("SHOW TABLES");
