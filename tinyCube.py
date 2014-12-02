@@ -72,8 +72,8 @@ cursor = db.cursor();
 
 
 # Turn off caching in MySQL for the purpose of experiment
-cursor.execute("SET SESSION query_cache_type = OFF");
-cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
+cursor.execute("SET GLOBAL query_cache_type = OFF");
+cursor.execute("SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
 
 # Find all relations and attributes within a database
 cursor.execute("SHOW TABLES");
@@ -89,4 +89,4 @@ for relation in data:
 
 tinyCube('TRAIN ./config/default_workload.dat');
 tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');
-tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');
+tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 30');
