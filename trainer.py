@@ -8,6 +8,13 @@ import numpy as np
 import scipy as sp
 from sklearn.cluster import KMeans
 
+def if_num(value):
+	try:
+		float(value);
+		return True;
+	except ValueError:
+		return False;
+
 def convert_to_num(s):
 	try:
 		return int(s)
@@ -198,7 +205,12 @@ def train_parser(query):
 		
 		if op == '=' or op == '>=' or op == '>' or op == '<=' or op == '<':
 			value = query_set.pop(0);
-			values.append(convert_to_num(value));
+			# Save as number if the value is a number
+			if if_num(value):
+				values.append(convert_to_num(value));
+			# Otherwise, save as string
+			else:
+				values.append(value);
 
 		# Get rid of "AND"
 		if query_set:
