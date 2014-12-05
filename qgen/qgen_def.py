@@ -4,6 +4,7 @@ import random
 import math
 import re
 import datetime
+import random
 
 # Constant
 _db_name_default = "tpch";
@@ -38,6 +39,7 @@ class QGen:
 					print msg
 					msg = "";
 				c = f.read(1);
+			f.close();
 
 		for item in train_set:
 			idx = item.index(' ');
@@ -57,49 +59,44 @@ class QGen:
 		except ValueError:
 			return float(s)
 
-	def resolveCalc(self,computation,ifDate):
-		if "+" in computation or "-" in computation or "*" in computation or "/" in computation:
-			if ifDate:
-				tmp = re.split('\+|\-|\*|\/|(|)',computation);
-				var_tag = tmp[0];
-				op_val = tmp[1];
-				unit = tmp[2];
-				if "+" in computation:
-					if unit == "day":
-						d = datetime.datetime.strptime(var_tag, '%Y-%m-%d') + datetime.timedelta(days=self.convert_to_num(op_val))
-						return d.strftime('%Y-%m-%d');
-					else:
-						print unit + " is not supported"
-						return var_tag;
-				elif "-" in computation:
-					if unit == "day":
-						d = datetime.datetime.strptime(var_tag, '%Y-%m-%d') + datetime.timedelta(days=self.convert_to_num("-"+op_val));
-						return d.strftime('%Y-%m-%d');				
-					else:
-						print unit + " is not supported"
-						return var_tag;
-			else:
-				tmp = re.split('\+|\-|\*|\/|(|)',computation);
-				val1 = self.convert_to_num(tmp[0]);
-				val2 = self.convert_to_num(tmp[1]);
-				if "+" in computation:
-					return val1 + val2;
-				elif "-" in computation:
-					return val1 - val2;
-				elif "*" in computation:
-					return val1 * val2;
-				elif "/" in computation:
-					return val1 / val2;
+	def resolveCalc(self,val1,op,val2,ifDate):
 
+		if ifDate:
+			tmp = re.split('\+|\-|\*|\/|\(|\)',val2);
+
+			val = tmp[0];
+			unit = tmp[1];
+			if op == "+":
+				if unit == "day":
+					d = datetime.datetime.strptime(val1, '%Y-%m-%d') + datetime.timedelta(days=self.convert_to_num(val))
+					return d.strftime('%Y-%m-%d');
+				else:
+					print unit + " is not supported"
+					return val1;
+			elif op == "-":
+				if unit == "day":
+					d = datetime.datetime.strptime(val1, '%Y-%m-%d') + datetime.timedelta(days=self.convert_to_num("-"+val));
+					return d.strftime('%Y-%m-%d');				
+				else:
+					print unit + " is not supported"
+					return val1;
 		else:
-			return computation;
+			val1 = self.convert_to_num(val1);
+			val2 = self.convert_to_num(val2);
+			if op == "+":
+				return str(val1 + val2);
+			elif op == "-":
+				return str(val1 - val2);
+			elif op == "*":
+				return str(val1 * val2);
+			elif op == "/":
+				return str(val1 / val2);
 
 
 	def replaceVar(self,relation,attribute,num):
 		db = mysql.connector.connect(host=_host_name,user=_user_name,db=self.db_name);
 		cursor = db.cursor();
 		msg = "SELECT "+attribute+" FROM "+relation+" ORDER BY RAND() LIMIT "+str(num);
-		print msg
 		cursor.execute(msg);
 		data = cursor.fetchall();
 		ret_list = [];
@@ -170,13 +167,14 @@ class QGen:
 						op = "*";
 					elif "/" in seg:
 						op = "/";
-					tmp = re.split('\+|\-|\*|\/|(|)',seg);
+					tmp = re.split('\+|\-|\*|\/|\(|\)',seg);
 					var_tag = tmp[0];
 					op_val = tmp[1];
 					unit = tmp[2];
 					if var_tag not in var_dict.keys():
 						date_var.add(var_tag);
 						var_dict[seg] = self.replaceVar(relation_name,query_seg[idx-3],num);
+
 
 		# Create new queries
 		for i in range(0,num):
@@ -187,11 +185,30 @@ class QGen:
 					var_tag = p.group()[1:];
 					val_list = var_dict[var_tag];
 					orig_str = new_query_seg[idx];
-					raw_data = orig_str.replace(str(p.group(0)),str(val_list[i]));
-					if var_tag in date_var:
-						new_query_seg[idx] = self.resolveCalc(raw_data,True);
+					op = "";
+					if "+" in new_query_seg[idx]:
+						op = "+";
+					elif "-" in new_query_seg[idx]:
+						op = "-";
+					elif "*" in new_query_seg[idx]:
+						op = "*";
+					elif "/" in new_query_seg[idx]:
+						op = "/";
+					# If there is computation to be resolved
+					if op:
+						tmp = re.split('\+|\-|\*|\/',new_query_seg[idx]);
+						op_val = tmp[1];
+						if var_tag in date_var:
+							new_query_seg[idx] = self.resolveCalc(str(val_list[i]),op,op_val,True);
+						else:
+							new_query_seg[idx] = self.resolveCalc(str(val_list[i]),op,op_val,False);
+					# If not, just replace variable
 					else:
-						new_query_seg[idx] = self.resolveCalc(raw_data,False);
+						new_query_seg[idx] = orig_str.replace(str(p.group(0)),str(val_list[i]));
+			
+			while "date" in new_query_seg:
+				new_query_seg.remove("date");
+			
 			ret_query.append(" ".join(new_query_seg));
 
 		return ret_query;
@@ -207,17 +224,18 @@ class QGen:
 		return retQuerySet;
 
 	def genQueryToFile(self,output_file):
+		query_set =	self.genQuery();
+		random.shuffle(query_set);
+		f = open(output_file,'w');
+		for query in query_set:
+			f.write(query+";\n");
+		f.close();
 		return;
 			
 
-
-
-	def genQueryToFile(self):
-		queries = self.genQuery();
-
 def main():
 	qgen = QGen();
-	print qgen.genQuery();
+	qgen.genQueryToFile("./1_out.sql")
 
 
 if __name__ == "__main__":
