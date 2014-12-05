@@ -2,16 +2,16 @@
 # For each aggregate, e.g. SUM(A), we construct a big Cube which contains a set
 # of small tinyCubes
 
-import trainer as t
 import time
 import threading
 import Queue
 import mysql.connector
+import datetime
 
 _host_name = "localhost";
 _user_name = "root";
-_db_name = "tinyCube";
-_worker_num = 10;
+_db_name = "tpch";
+_worker_num = 20;
 
 class Cube:
 	aggregate = "";
@@ -21,13 +21,14 @@ class Cube:
 	attr_partition = dict();
 	temp_attr_partition = dict();
 	attr_group = dict();
+	attr_types = dict();
 	tinyCubes = [];
 	if_repartition = False;
 
 	temp_work = [];
 	q = Queue.Queue();
 
-	def __init__(self,agg,if_repartition,attr_group,init_partition):
+	def __init__(self,agg,if_repartition,attr_group,init_partition,types):
 		self.aggregate = agg;
 		info = agg.split("@");
 		self.operation = info[0];
@@ -37,6 +38,7 @@ class Cube:
 		self.attr_group = attr_group;
 		self.attr_partition = init_partition;
 		self.dimensions = self.attr_group.keys();
+		self.attr_types = types;
 		# Initialize tinycubes
 		tinycubes_size = len(set(self.attr_group.values()));
 		for i in range(0,tinycubes_size):
@@ -48,18 +50,42 @@ class Cube:
 		else:
 			return False;
 
+	def if_num(self,value):
+		try:
+			float(value);
+			return True;
+		except ValueError:
+			return False;
+
+	def convert_to_num(self,s):
+		try:
+			return int(s)
+		except ValueError:
+			return float(s)
+
+	def epoch2date(self,epoch):
+		pattern = '%Y-%m-%d';
+		date = time.strftime(pattern, time.localtime(epoch));
+		return date;
+	
+	def date2epoch(self,date):
+		pattern = '%Y-%m-%d';
+		epoch = int(time.mktime(time.strptime(date, pattern)));
+		return epoch;
+
 	def ifRepartition(self):
 		return self.if_repartition;
 		
 	def checkAggregate(self):
 		return self.aggregate;
 
-	def getNumOfCubes(Self):
-		return len(tinyCubes);
+	def getNumOfCubes(self):
+		return len(self.tinyCubes);
 
-	def getNumofGrids(Self):
+	def getNumofGrids(self):
 		num = 0;
-		for cube in tinyCubes:
+		tmp = self.tinyCubes
+		for cube in tmp:
 			num += len(cube);
 		return num;
 
@@ -91,7 +117,7 @@ class Cube:
 				if value2 not in self.attr_partition[this_attr]:
 					return False;
 			else:
-				value = t.convert_to_num(value);
+				value = self.convert_to_num(value);
 				this_attr = attr_list[i];
 				if value not in self.attr_partition[this_attr]:
 					return False;
@@ -116,26 +142,45 @@ class Cube:
 				if "," in value:
 					vset = value.split(",");
 					this_attr = attr_list[i];
+					# If this_attr is a date
+					if self.attr_types[self.relation+'.'+this_attr] == "date":
+						vset[0] = self.epoch2date(self.convert_to_num(vset[0]));
+						vset[1] = self.epoch2date(self.convert_to_num(vset[1]));
 					if i > 0:
 						query += " AND";
 					query += " (" + this_attr + " >= " + str(vset[0]) + " AND " + this_attr + " < " + str(vset[1]) +")";
 
 				# If the predicate value is like "10"
 				else:
-					value = t.convert_to_num(value);
-					this_attr = attr_list[i];
-					this_partition = self.attr_partition[this_attr];
-					if i > 0:
-						query += " AND";
+					if self.if_num(value): 
+						value = self.convert_to_num(value);
+						this_attr = attr_list[i];
+						this_partition = self.attr_partition[this_attr];
+						
 
-					# If this is the first value in partition of attribut, say 10 in partition of 
-					# attribut A: [10,15,23]. Then we have predicate A < 10, as we defined before
-					if this_partition.index(value) == 0:
-						query += " " + this_attr + " < " + str(value);
-					# Other wise it must be the last value 23. We have predicate A >= 23
+						if i > 0:
+							query += " AND";
+
+						# If this is the first value in partition of attribut, say 10 in partition of 
+						# attribut A: [10,15,23]. Then we have predicate A < 10, as we defined before
+						if this_partition.index(value) == 0:
+							# If this_attr is a date
+							if self.attr_types[self.relation+'.'+this_attr] == "date":
+								value = self.epoch2date(value);
+							query += " " + this_attr + " < " + str(value);
+						# Other wise it must be the last value 23. We have predicate A >= 23
+						else:
+							# If this_attr is a date
+							if self.attr_types[self.relation+'.'+this_attr] == "date":
+								value = self.epoch2date(value);
+							query += " " + this_attr + " >= " + str(value);
+
+					# This is a string
 					else:
-						query += " " + this_attr + " >= " + str(value);
-
+						this_attr = attr_list[i];
+						if i > 0:
+							query += " AND";
+						query += " " + this_attr + " = " + value;
 			query_set.append(query);
 
 		return query_set;
@@ -143,28 +188,31 @@ class Cube:
 	def askDBworker(self,key_set,tinycube_id,lock):
 	
 		lock.acquire();
-		newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
-		cursor = newdb.cursor();
+		#newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
+		#cursor = newdb.cursor();
 		index = len(self.temp_work)-1;
 		while index >= 0:
 
 			subquery = self.temp_work.pop();
 			lock.release();
-			cursor.execute(subquery);
+			#cursor.execute(subquery);
 
-			query_result = cursor.fetchall();
-			query_val = query_result[0][0];
+			#query_result = cursor.fetchall();
+			#query_val = query_result[0][0];
+			query_val = 0;
 			if (self.if_repartition == True) or (self.if_repartition == False and self.checkIfGridInOldPartition(key_set[index],tinycube_id)):
 					lock.acquire();
+					if str(query_val) == "None":
+						query_val = 0;
 					self.tinyCubes[tinycube_id][key_set[index]] = query_val;
 					lock.release();
-					print "Cached " + key_set[index] + " " + str(query_val);
+					#print "Cached " + key_set[index] + " " + str(query_val);
 			self.q.put(query_val);
 			lock.acquire();
 			index = len(self.temp_work)-1;
 
 		lock.release();
-		cursor.close();
+		#cursor.close();
 		return;
 
 
@@ -187,6 +235,7 @@ class Cube:
 		'''
 		
 		query_set = self.generateQuery(tinycube_id,key_set);
+		#print len(query_set);
 		self.temp_work = list(query_set);
 		lock = threading.Lock();
 
@@ -217,13 +266,19 @@ class Cube:
 		unknown_partial_aggr_result = [];
 		tinycube_id = int(grids[0]);
 		tinyCube = self.tinyCubes[tinycube_id];
+		cache_found = 0;
+		not_found = 0;
 		for key in grids[1:]:
 			# Check which cube it belongs
 			if key in tinyCube.keys():
-				print "Find Cached answer on " + key;
+				#print "Find Cached answer on " + key;
+				cache_found += 1;
 				cached_partial_result.append(tinyCube[key]);
 			else:
+				not_found += 1;
 				unknown_partial_aggr.append(key);
+
+		print str(float(cache_found)/float(cache_found+not_found));
 
 		if unknown_partial_aggr:
 			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id);
@@ -257,6 +312,7 @@ class Cube:
 			if self.if_repartition:
 				self.temp_attr_partition = self.attr_partition.copy(); 
 
+			# For each dimension of TinyCube, find corresponding partitions
 			for att in tinycube_attr:
 				grid_dim = [];
 				temp_part = list(self.attr_partition[att]);
@@ -266,6 +322,9 @@ class Cube:
 					# A >= x
 					if pred[0] == ">=":
 						value = pred[1];
+						# If the value is date, convert it epoch
+						if self.attr_types[self.relation+'.'+att] == "date":
+							value = self.date2epoch(value);
 						# If the value is new, then insert it in the temp_dim before 
 						# finding grids.
 						if value not in temp_part:
@@ -281,6 +340,9 @@ class Cube:
 					# A < x
 					elif pred[0] == "<":
 						value = pred[1];
+						# If the value is date, convert it epoch
+						if self.attr_types[self.relation+'.'+att] == "date":
+							value = self.date2epoch(value);
 						# If the value is new, then insert it in the temp_dim before 
 						# finding grids.
 						if value not in temp_part:
@@ -292,11 +354,23 @@ class Cube:
 
 						for i in range(0,index):
 							grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
+					
+					# A = "x", only for string
+					elif pred[0] == "=":
+						value = pred[1];
+						if value not in temp_part:
+							temp_part.append(value);
+							temp_part.sort();
+						grid_dim.append(value);
 
 					# x<=A< y
 					else:
 						value1 = pred[0];
 						value2 = pred[1];
+						# If the value is date, convert it epoch
+						if self.attr_types[self.relation+'.'+att] == "date":
+							value1 = self.date2epoch(value1);
+							value2 = self.date2epoch(value2);
 						# If the value is new, then insert it in the temp_dim before 
 						# finding grids.
 						if value1 not in temp_part:
@@ -319,7 +393,7 @@ class Cube:
 					grid_dim.append(temp_part[0]);
 					grid_dim.append(temp_part[size-1]);
 					for i in range(1,size-2):
-						grid_dim.append(temp_part[i]+','+temp_part[i+1]);
+						grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
 
 			  # if the grids list is empty
 				if not grids:
@@ -366,7 +440,11 @@ class Cube:
 		
 			values.append(predicate[i]);
 			i += 1;
-			values.append(t.convert_to_num(predicate[i]));
+			# Convert the value to number type if it is.
+			if self.if_num(predicate[i]):
+				values.append(self.convert_to_num(predicate[i]));
+			else:
+				values.append(predicate[i]);
 			i += 2;
 			# Attribute has not appeared
 			if attr not in new_pred.keys():
@@ -385,33 +463,28 @@ class Cube:
 	# Get predicate like [A,>=,5,AND,B,<,10]
  	def answerQuery(self,predicate):
 		# get all grids in the cube that is within the prdicates
-		print("Start");
+		#print("Start");
 		#print predicate;
 		current_milli_time = lambda: int(round(time.time() * 1000));
 		time1 = current_milli_time();
 
 		grids = self.findGrids(self.rewritePredicate(predicate));
 		
-		print "grids" + str(grids);
+		#print "grids";
 		
 		# find all partial aggregates
 		answers = self.findPartialAnswer(grids);
 		ret = sum(answers);
 		time2 = current_milli_time();
 
-		print "Lantency" + str(time2-time1);
-    # Compute final answer (depend on actual aggregates)
-		# answer = computeFinalAnswer(answers);
-
-		# return final answer
-		#return sum(answer);
-		print("END");
+		#print "Lantency" + str(time2-time1);
+    
 
 		# In the end, if repartition, then update the partition information
 		if self.if_repartition:
 			self.attr_partition = self.temp_attr_partition.copy();
 			self.temp_attr_partition.clear();
-			print self.attr_partition
+			#print self.attr_partition
 
 		return ret;
 

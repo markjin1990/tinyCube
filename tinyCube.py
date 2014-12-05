@@ -7,16 +7,17 @@ import os.path
 
 # Local library
 import queryRewriter as rewriter
-import trainer as t
+from trainer import Trainer
 from Cube import Cube
 
 
 # Constants
 _host_name = "localhost";
 _user_name = "root";
-_db_name = "tinyCube";
-_relation_name = "KDD";
+_db_name = "tpch";
 _cmd_train = "TRAIN";
+_cmd_answer = "ANSWER";
+_cmd_getNumOfCache = "CACHE#";
 
 # Files
 _default_workload = "./config/workload.dat";
@@ -25,11 +26,12 @@ _default_workload = "./config/workload.dat";
 relations = [];
 aggregates = [];
 attributes = dict();
+attr_types = dict();
 attr_partition = dict();
 cube_partition = dict();
 cubes = dict();
 
-def tinyCube(query):
+def tinyCube(query,ifTinyCube,ifRepartition):
 	# Check if query is for Training
 	check = query.split(' ');
 	if check[0] == _cmd_train:
@@ -39,24 +41,27 @@ def tinyCube(query):
 			f = open(filename, 'r');
 			for line in f:
 				line = line.replace("\n","");
+				line = line.replace(";","");
 				train_set.append(line);
 		else:
 			f = open(_default_workload, 'r');
 			for line in f:
 				line = line.replace("\n","");
+				line = line.replace(";","");
 				train_set.append(line);
 
-		t.train(train_set,True,cube_partition,attr_partition);
+		t = Trainer(attr_types);
+		t.train(train_set,ifTinyCube,cube_partition,attr_partition);
 
-		print(attr_partition);
-		print(cube_partition);
+		#print cube_partition
+		#print attr_partition
 		
 		# Construct Cubes
 		for key,value in cube_partition.iteritems():
-			cubes[key] = Cube(key,True,attr_partition[key],cube_partition[key]);
+			cubes[key] = Cube(key,ifRepartition,attr_partition[key],cube_partition[key],attr_types);
 						
 	# Answer query
-	else:
+	elif check[0] == _cmd_answer:
 		#print('sf');
 		sql_query = check[1:];			 
 		relation = sql_query[sql_query.index("FROM")+1];
@@ -64,7 +69,21 @@ def tinyCube(query):
 		predicate = sql_query[sql_query.index("WHERE")+1:];
 		mycube_key = aggregate+'@'+relation;
 		mycube = cubes[mycube_key];
-		print mycube.answerQuery(predicate);
+		# This is the final answer
+		mycube.answerQuery(predicate);
+
+	elif check[0] == _cmd_getNumOfCache:
+		#print('sf');
+		sql_query = check[1:];			 
+		relation = sql_query[sql_query.index("FROM")+1];
+		aggregate = sql_query[sql_query.index("SELECT")+1];
+		predicate = sql_query[sql_query.index("WHERE")+1:];
+		mycube_key = aggregate+'@'+relation;
+		mycube = cubes[mycube_key];
+		if mycube:
+			print "Caches: " + str(mycube.getNumofGrids());
+		else:
+			print "error"
 
 # Connect to DBMS (MySQL)
 db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
@@ -77,16 +96,40 @@ cursor.execute("SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
 
 # Find all relations and attributes within a database
 cursor.execute("SHOW TABLES");
-data = cursor.fetchone();
+data = cursor.fetchall();
 for relation in data:
-	relations.append(relation);
-	cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+relation+"'");
+	relations.append(relation[0]);
+	msg = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+str(relation[0])+"'";
+	cursor.execute(msg);
 	data = cursor.fetchall();
 	att_list = [];
 	for att in data:
-			att_list.append(att[0]);
+		att_list.append(str(att[0]));
+		key = str(relation[0]+'.'+att[0]);
+		attr_types[key] = str(att[1]);
 	attributes[relation] = att_list;
 
-tinyCube('TRAIN ./config/default_workload.dat');
-tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 24');
-tinyCube('ANSWER SELECT SUM(src_bytes) FROM KDD WHERE dst_bytes < 150 AND count >= 22 AND count < 30');
+	#print attr_types;
+
+
+tinyCube('TRAIN ./qgen/1_out.sql',True,True);
+test_set = [];
+filename = "./qgen/2_out.sql";
+if os.path.exists(filename):
+	f = open(filename, 'r');
+	for line in f:
+		line = line.replace("\n","");
+		line = line.replace(";","");
+		test_set.append(line);
+else:
+	f = open(_default_workload, 'r');
+	for line in f:
+		line = line.replace("\n","");
+		line = line.replace(";","");
+		test_set.append(line);
+
+for idx,query in enumerate(test_set):
+	tinyCube('ANSWER '+query,True,True);
+	tinyCube('CACHE# '+query,True,True);
+
+

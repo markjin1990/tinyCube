@@ -234,8 +234,8 @@ class QGen:
 			
 
 def main():
-	qgen = QGen();
-	qgen.genQueryToFile("./1_out.sql")
+	qgen = QGen(template_name="./2.sql");
+	qgen.genQueryToFile("./2_out.sql")
 
 
 if __name__ == "__main__":
