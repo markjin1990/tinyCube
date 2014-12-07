@@ -8,6 +8,8 @@ import Queue
 import mysql.connector
 import datetime
 
+
+
 _host_name = "localhost";
 _user_name = "root";
 _db_name = "tpch";
@@ -21,6 +23,7 @@ class Cube:
 	attr_partition = dict();
 	temp_attr_partition = dict();
 	attr_group = dict();
+	tinyCube_attrs = dict();
 	attr_types = dict();
 	tinyCubes = [];
 	if_repartition = False;
@@ -38,6 +41,18 @@ class Cube:
 		self.attr_group = attr_group;
 		self.attr_partition = init_partition;
 		self.dimensions = self.attr_group.keys();
+		
+		# Construct a dictionary that contains the info that, given tinyCube id,
+		# return all attributes within this tinyCube in fixed sequence.
+		for dim in self.dimensions:
+			tinycube_id = self.attr_group[dim];
+			if tinycube_id not in self.tinyCube_attrs.keys():
+				self.tinyCube_attrs[tinycube_id] = [dim];
+			else:
+				tmplist = self.tinyCube_attrs[tinycube_id];
+				tmplist.append(dim);
+				self.tinyCube_attrs[tinycube_id] = tmplist;
+
 		self.attr_types = types;
 		# Initialize tinycubes
 		tinycubes_size = len(set(self.attr_group.values()));
@@ -96,12 +111,9 @@ class Cube:
 		return 0;
 
 	def checkIfGridInOldPartition(self,grid_key,tinycube_id):
+		#print str(tinycube_id) + " " + grid_key
 		value_set = grid_key.split("&");
-		attr_list = [];
-		
-		for key,value in self.attr_group.iteritems():
-			if value == tinycube_id:
-				attr_list.append(key);
+		attr_list = self.tinyCube_attrs[tinycube_id];
 			
 		for i,value in enumerate(value_set):
 			# If the predicate value is like "10,23"
@@ -110,6 +122,10 @@ class Cube:
 				this_attr = attr_list[i];
 				value1 = vset[0];
 				value2 = vset[1];
+				if self.if_num(value1):
+					value1 = self.convert_to_num(value1);
+				if self.if_num(value2):
+					value2 = self.convert_to_num(value2);
 				# If this value is not in the origial partition return False
 				# Same as following False
 				if value1 not in self.attr_partition[this_attr]:
@@ -117,7 +133,8 @@ class Cube:
 				if value2 not in self.attr_partition[this_attr]:
 					return False;
 			else:
-				value = self.convert_to_num(value);
+				if self.if_num(value):
+					value = self.convert_to_num(value);
 				this_attr = attr_list[i];
 				if value not in self.attr_partition[this_attr]:
 					return False;
@@ -127,11 +144,7 @@ class Cube:
 
 	def generateQuery(self,tinycube_id,key_set):
 		query_set = [];
-		attr_list = [];
-		
-		for key,value in self.attr_group.iteritems():
-			if value == tinycube_id:
-				attr_list.append(key);
+		attr_list = self.tinyCube_attrs[tinycube_id];
 
 		for key in key_set:
 			query = 'SELECT ' + self.operation + ' FROM ' + self.relation + ' WHERE';
@@ -181,6 +194,8 @@ class Cube:
 						if i > 0:
 							query += " AND";
 						query += " " + this_attr + " = " + value;
+			
+			# Subquery for this key is generated
 			query_set.append(query);
 
 		return query_set;
@@ -236,6 +251,7 @@ class Cube:
 		
 		query_set = self.generateQuery(tinycube_id,key_set);
 		#print len(query_set);
+
 		self.temp_work = list(query_set);
 		lock = threading.Lock();
 
@@ -259,7 +275,7 @@ class Cube:
 
 	def findPartialAnswer(self,grids):
 		if not grids:
-			return 0;
+			return "EMPTY";
 
 		cached_partial_result = [];
 		unknown_partial_aggr = [];
@@ -278,7 +294,7 @@ class Cube:
 				not_found += 1;
 				unknown_partial_aggr.append(key);
 
-		print str(float(cache_found)/float(cache_found+not_found));
+		#print str(float(cache_found)/float(cache_found+not_found));
 
 		if unknown_partial_aggr:
 			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id);
@@ -304,9 +320,7 @@ class Cube:
 			# findPartialAnswer function
 			tinycube_attr = [];
 			# Get all attribute within this tinyCube
-			for key,value in self.attr_group.iteritems():
-				if value == tinycube_id:
-					tinycube_attr.append(key);
+			tinycube_attr = self.tinyCube_attrs[tinycube_id];
 
 			# Initialize temp_attr_partition
 			if self.if_repartition:
@@ -387,7 +401,7 @@ class Cube:
 							grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
 
 
-				# If the range in this dimension is NOT specified by the predicate
+				# If the range in this dimension is NOT specified by the predicate, include all
 				else:
 					size = len(temp_part);
 					grid_dim.append(temp_part[0]);
@@ -395,7 +409,7 @@ class Cube:
 					for i in range(1,size-2):
 						grid_dim.append(str(temp_part[i])+','+str(temp_part[i+1]));
 
-			  # if the grids list is empty
+			  # if the grids list is empty, which means it is the first dimension.
 				if not grids:
 					grids = grid_dim;
 				# else add a new dimension for all the grids
@@ -460,6 +474,20 @@ class Cube:
 		return new_pred;
 
 
+	def answerNotMatchQuery(self,predicate_dict):
+		msg = "SELECT " + self.operation + " FROM " + self.relation + " WHERE ";
+		count = 0;
+		for key, value in predicate_dict.iteritems():
+			if count != 0:
+				msg += " AND ";
+			msg += " " + key + " " + value[0] + " "+ value[1];
+		newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
+		cursor = newdb.cursor();
+		cursor.execute(msg);
+		query_result = cursor.fetchall();
+		query_val = query_result[0][0];
+		return query_val;
+
 	# Get predicate like [A,>=,5,AND,B,<,10]
  	def answerQuery(self,predicate):
 		# get all grids in the cube that is within the prdicates
@@ -468,7 +496,11 @@ class Cube:
 		current_milli_time = lambda: int(round(time.time() * 1000));
 		time1 = current_milli_time();
 
-		grids = self.findGrids(self.rewritePredicate(predicate));
+		predicate_dict = self.rewritePredicate(predicate);
+		grids = self.findGrids(predicate_dict);
+
+		if not grids:
+			return self.answerNotMatchQuery(predicate_dict);
 		
 		#print "grids";
 		

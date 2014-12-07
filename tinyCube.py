@@ -9,7 +9,7 @@ import os.path
 import queryRewriter as rewriter
 from trainer import Trainer
 from Cube import Cube
-
+import resource
 
 # Constants
 _host_name = "localhost";
@@ -31,7 +31,7 @@ attr_partition = dict();
 cube_partition = dict();
 cubes = dict();
 
-def tinyCube(query,ifTinyCube,ifRepartition):
+def tinyCube(query,ifTinyCube,ifRepartition,idx=0):
 	# Check if query is for Training
 	check = query.split(' ');
 	if check[0] == _cmd_train:
@@ -53,7 +53,7 @@ def tinyCube(query,ifTinyCube,ifRepartition):
 		t = Trainer(attr_types);
 		t.train(train_set,ifTinyCube,cube_partition,attr_partition);
 
-		#print cube_partition
+		print cube_partition
 		#print attr_partition
 		
 		# Construct Cubes
@@ -81,9 +81,13 @@ def tinyCube(query,ifTinyCube,ifRepartition):
 		mycube_key = aggregate+'@'+relation;
 		mycube = cubes[mycube_key];
 		if mycube:
-			print "Caches: " + str(mycube.getNumofGrids());
+			print str(idx)+','+str(mycube.getNumofGrids())+","+memUse();
 		else:
 			print "error"
+
+def memUse(point=""):
+    usage=resource.getrusage(resource.RUSAGE_SELF)
+    return '''%s'''%((usage[2]*resource.getpagesize())/1000000.0 )
 
 # Connect to DBMS (MySQL)
 db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
@@ -112,7 +116,7 @@ for relation in data:
 	#print attr_types;
 
 
-tinyCube('TRAIN ./qgen/1_out.sql',True,True);
+tinyCube('TRAIN ./qgen/1_out.sql',True,False,0);
 test_set = [];
 filename = "./qgen/2_out.sql";
 if os.path.exists(filename):
@@ -128,8 +132,14 @@ else:
 		line = line.replace(";","");
 		test_set.append(line);
 
+final_query = "";
+final_idx = 0;
 for idx,query in enumerate(test_set):
-	tinyCube('ANSWER '+query,True,True);
-	tinyCube('CACHE# '+query,True,True);
+	tinyCube('ANSWER '+query,True,False,idx);
+	if idx%100 == 0:
+		tinyCube('CACHE# '+query,True,False,idx);
+	final_query = query;
+	final_idx = idx;
+tinyCube('CACHE# '+final_query,True,False,final_idx);
 
 
