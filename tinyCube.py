@@ -7,6 +7,7 @@ import os.path
 import resource
 import socket
 import sys,getopt
+sys.path.insert(0, './src/')
 
 # Local library
 import queryRewriter as rewriter
