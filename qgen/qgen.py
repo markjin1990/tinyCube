@@ -1,3 +1,10 @@
+'''
+qgen
+Author: Zhongjun Jin
+Usage:
+	python qgen -i template_file -o output_file
+'''
+
 import mysql.connector
 import os.path
 import random
@@ -5,10 +12,12 @@ import math
 import re
 import datetime
 import random
+import sys,getopt
 
 # Constant
 _db_name_default = "tpch";
-_template_name_default = "1.sql";
+_template_name_default = "template.sql";
+_output_file_default = "rand_query.sql"
 _host_name = "localhost";
 _user_name = "root";
 
@@ -223,7 +232,7 @@ class QGen:
 
 		return retQuerySet;
 
-	def genQueryToFile(self,output_file):
+	def genQueryToFile(self,output_file=_output_file_default):
 		query_set =	self.genQuery();
 		random.shuffle(query_set);
 		f = open(output_file,'w');
@@ -233,10 +242,34 @@ class QGen:
 		return;
 			
 
-def main():
-	qgen = QGen(template_name="./2.sql");
-	qgen.genQueryToFile("./2_out.sql")
+def main(argv):
+	inputfile = ''
+	outputfile = ''
+	try:
+		opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
+	except getopt.GetoptError:
+		print 'test.py -i <inputfile> -o <outputfile>'
+		sys.exit(2)
+	for opt, arg in opts:
+		if opt == '-h':
+			print 'test.py -i <inputfile> -o <outputfile>'
+			sys.exit()
+		elif opt in ("-i", "--ifile"):
+			inputfile = arg
+		elif opt in ("-o", "--ofile"):
+			outputfile = arg
+	
+	if inputfile == "":
+		qgen = QGen();
+	else:
+		qgen = QGen(template_name=inputfile);
+
+	if inputfile == "":
+		qgen.genQueryToFile()
+	else:
+		qgen.genQueryToFile(output_file=outputfile)
+	
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

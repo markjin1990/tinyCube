@@ -4,12 +4,14 @@
 # Global Library
 import mysql.connector
 import os.path
+import resource
+import socket
+import sys,getopt
 
 # Local library
 import queryRewriter as rewriter
 from trainer import Trainer
 from Cube import Cube
-import resource
 
 # Constants
 _host_name = "localhost";
@@ -19,127 +21,161 @@ _cmd_train = "TRAIN";
 _cmd_answer = "ANSWER";
 _cmd_getNumOfCache = "CACHE#";
 
+_port = 5000
+_backlog = 5 
+_size = 1024 
+
 # Files
 _default_workload = "./config/workload.dat";
 
-# Global variable
-relations = [];
-aggregates = [];
-attributes = dict();
-attr_types = dict();
-attr_partition = dict();
-cube_partition = dict();
-cubes = dict();
 
-def tinyCube(query,ifTinyCube,ifRepartition,idx=0):
-	# Check if query is for Training
-	check = query.split(' ');
-	if check[0] == _cmd_train:
-		train_set = [];
-		filename = check[1];
-		if os.path.exists(filename):
-			f = open(filename, 'r');
-			for line in f:
-				line = line.replace("\n","");
-				line = line.replace(";","");
-				train_set.append(line);
-		else:
-			f = open(_default_workload, 'r');
-			for line in f:
-				line = line.replace("\n","");
-				line = line.replace(";","");
-				train_set.append(line);
+class TinyCube:
+	# Global variable
+	relations = [];
+	aggregates = [];
+	attributes = dict();
+	attr_types = dict();
+	attr_partition = dict();
+	cube_partition = dict();
+	cubes = dict();
+	ifTinyCube = True;
+	ifRepartition = True;
 
-		t = Trainer(attr_types);
-		t.train(train_set,ifTinyCube,cube_partition,attr_partition);
+	def __init__(self,mode,ifRepartition):
+		if mode == "COSMOS":
+			self.ifTinyCube = False;
+		elif mode == "TinyCube":
+			self.ifTinyCube = True;
 
-		print cube_partition
-		#print attr_partition
-		
-		# Construct Cubes
-		for key,value in cube_partition.iteritems():
-			cubes[key] = Cube(key,ifRepartition,attr_partition[key],cube_partition[key],attr_types);
-						
-	# Answer query
-	elif check[0] == _cmd_answer:
-		#print('sf');
-		sql_query = check[1:];			 
-		relation = sql_query[sql_query.index("FROM")+1];
-		aggregate = sql_query[sql_query.index("SELECT")+1];
-		predicate = sql_query[sql_query.index("WHERE")+1:];
-		mycube_key = aggregate+'@'+relation;
-		mycube = cubes[mycube_key];
-		# This is the final answer
-		mycube.answerQuery(predicate);
-
-	elif check[0] == _cmd_getNumOfCache:
-		#print('sf');
-		sql_query = check[1:];			 
-		relation = sql_query[sql_query.index("FROM")+1];
-		aggregate = sql_query[sql_query.index("SELECT")+1];
-		predicate = sql_query[sql_query.index("WHERE")+1:];
-		mycube_key = aggregate+'@'+relation;
-		mycube = cubes[mycube_key];
-		if mycube:
-			print str(idx)+','+str(mycube.getNumofGrids())+","+memUse();
-		else:
-			print "error"
-
-def memUse(point=""):
-    usage=resource.getrusage(resource.RUSAGE_SELF)
-    return '''%s'''%((usage[2]*resource.getpagesize())/1000000.0 )
-
-# Connect to DBMS (MySQL)
-db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
-cursor = db.cursor();
+		self.ifRepartition = ifRepartition;
+		# Connect to DBMS (MySQL)
+		db = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
+		cursor = db.cursor();
 
 
-# Turn off caching in MySQL for the purpose of experiment
-cursor.execute("SET GLOBAL query_cache_type = OFF");
-cursor.execute("SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
+		# Turn off caching in MySQL for the purpose of experiment
+		cursor.execute("SET GLOBAL query_cache_type = OFF");
+		cursor.execute("SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
 
-# Find all relations and attributes within a database
-cursor.execute("SHOW TABLES");
-data = cursor.fetchall();
-for relation in data:
-	relations.append(relation[0]);
-	msg = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+str(relation[0])+"'";
-	cursor.execute(msg);
-	data = cursor.fetchall();
-	att_list = [];
-	for att in data:
-		att_list.append(str(att[0]));
-		key = str(relation[0]+'.'+att[0]);
-		attr_types[key] = str(att[1]);
-	attributes[relation] = att_list;
+		# Find all relations and attributes within a database
+		cursor.execute("SHOW TABLES");
+		data = cursor.fetchall();
+		for relation in data:
+			self.relations.append(relation[0]);
+			msg = "SELECT COLUMN_NAME,DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"+str(relation[0])+"'";
+			cursor.execute(msg);
+			data = cursor.fetchall();
+			att_list = [];
+			for att in data:
+				att_list.append(str(att[0]));
+				key = str(relation[0]+'.'+att[0]);
+				self.attr_types[key] = str(att[1]);
+			self.attributes[relation] = att_list;
 
-	#print attr_types;
+	def handleRequest(self,query):
+		# Check if query is for Training
+		check = query.split(' ');
+		if check[0] == _cmd_train:
+			train_set = [];
+			filename = check[1];
+			if os.path.exists(filename):
+				f = open(filename, 'r');
+				for line in f:
+					line = line.replace("\n","");
+					line = line.replace(";","");
+					train_set.append(line);
+			else:
+				return "Training File "+filename + " Not Found"
+
+			t = Trainer(self.attr_types);
+			t.train(train_set,self.ifTinyCube,self.cube_partition,self.attr_partition);
+
+			#print self.cube_partition
+			#print attr_partition
+			
+			# Construct Cubes
+			for key,value in self.cube_partition.iteritems():
+				self.cubes[key] = Cube(key,self.ifRepartition,self.attr_partition[key],self.cube_partition[key],self.attr_types);
+				mycube = self.cubes[key];
+				print "TinyCube["+key+ "] is created. It has "+str(mycube.getNumOfCubes())+" TinyCubes"
+				print "TinyCube["+key+"] has "+str(mycube.getNumofGrids())+" cached results\n";
+
+			return "Training Done"
+							
+		# Answer query
+		elif check[0] == _cmd_answer:
+			#print('sf');
+			sql_query = check[1:];			 
+			relation = sql_query[sql_query.index("FROM")+1];
+			aggregate = sql_query[sql_query.index("SELECT")+1];
+			predicate = sql_query[sql_query.index("WHERE")+1:];
+			mycube_key = aggregate+'@'+relation;
+			mycube = self.cubes[mycube_key];
+			
+			
+			# This is the final answer
+			retmsg = "Result: "+str(mycube.answerQuery(predicate));
+			print retmsg;
+			print "TinyCube["+mycube_key+"] has "+str(mycube.getNumofGrids())+" cached results\n";
+			return retmsg;
+
+		elif check[0] == _cmd_getNumOfCache:
+			#print('sf');
+			sql_query = check[1:];			 
+			relation = sql_query[sql_query.index("FROM")+1];
+			aggregate = sql_query[sql_query.index("SELECT")+1];
+			predicate = sql_query[sql_query.index("WHERE")+1:];
+			mycube_key = aggregate+'@'+relation;
+			mycube = self.cubes[mycube_key];
+			num = mycube.getNumofGrids();
+			print "TinyCube["+key+"] has "+str(num)+" cached results\n";
+			return str(num);
+
+	def memUse(self,point=""):
+	    usage=resource.getrusage(resource.RUSAGE_SELF)
+	    return '''%s'''%((usage[2]*resource.getpagesize())/1000000.0 )
 
 
-tinyCube('TRAIN ./qgen/1_out.sql',True,False,0);
-test_set = [];
-filename = "./qgen/2_out.sql";
-if os.path.exists(filename):
-	f = open(filename, 'r');
-	for line in f:
-		line = line.replace("\n","");
-		line = line.replace(";","");
-		test_set.append(line);
-else:
-	f = open(_default_workload, 'r');
-	for line in f:
-		line = line.replace("\n","");
-		line = line.replace(";","");
-		test_set.append(line);
 
-final_query = "";
-final_idx = 0;
-for idx,query in enumerate(test_set):
-	tinyCube('ANSWER '+query,True,False,idx);
-	if idx%100 == 0:
-		tinyCube('CACHE# '+query,True,False,idx);
-	final_query = query;
-	final_idx = idx;
-tinyCube('CACHE# '+final_query,True,False,final_idx);
+
+def main(argv):
+	mode = ''
+	outputfile = ''
+	ifRepartition = False;
+	# Check command line arguments
+	try:
+		opts, args = getopt.getopt(argv,"hrm:",["mode=","repartition"])
+	except getopt.GetoptError:
+		print 'test.py -m <mode> [-r]'
+		sys.exit(2)
+	for opt, arg in opts:
+		if opt == '-h':
+			print 'test.py -m <mode> [-r]'
+			sys.exit()
+		elif opt in ('-r',"repartition"):
+			ifRepartition = True;
+		elif opt in ("-m", "--mode"):
+			mode = arg
+
+	# Create TinyCube object
+	myTinyCube = TinyCube(mode,ifRepartition);
+	print "TinyCube is created"
+
+	# Start TinyCube server
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	s.bind((_host_name,_port)) 
+	s.listen(_backlog) 
+	while 1: 
+		client, address = s.accept() 
+		request = client.recv(_size) 
+		if request: 
+			if request == "Exit":
+				client.close();
+			else:
+				client.send(myTinyCube.handleRequest(request));
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
 

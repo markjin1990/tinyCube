@@ -1,0 +1,20 @@
+"qgen" is a python script that is similar to "qgen" provided by "tpc-h". 
+The functionality of qgen is to generate random queries based on the user-defined query template. 
+The strength of qgen is, unlike "qgen" provided by "tpc-h", which is rather ad-hoc, our qgen can work with almost any dataset, because the values of unknown variables are randomly sampled from database.
+
+Attention:
+	Before runing the script, specify the database name, host name and user name in the script of qgen.py.
+
+How to use qgen:
+	python qgen.py -i template_file -o output_file
+
+How to write a query template:
+	This is a sample query template:
+	25 SELECT sum(l_quantity) FROM lineitem WHERE l_extendedprice >= $2 and l_extendedprice < $2+3000 and l_discount >= $3 and l_discount < $3+0.03;
+
+	Before the actual query, "SELECT ...", you need to specify how many random queries you want to generated from this template. 
+	In the query template, you need to define a random value as $1, $2, etc. If this is a date, put "date" before the random value like "l_receiptdate >= date $1". 
+	If your want to do operation to the variable, like "+","-", put the operator and operand close after the variable.
+	If the variable is a date, put an unit with parenthesis after operand, like "l_receiptdate >= date $1+5(day)".
+
+

@@ -27,6 +27,7 @@ class Cube:
 	attr_types = dict();
 	tinyCubes = [];
 	if_repartition = False;
+	num_of_tinycubes = -1;
 
 	temp_work = [];
 	q = Queue.Queue();
@@ -55,8 +56,9 @@ class Cube:
 
 		self.attr_types = types;
 		# Initialize tinycubes
-		tinycubes_size = len(set(self.attr_group.values()));
-		for i in range(0,tinycubes_size):
+		self.num_of_tinycubes = len(set(self.attr_group.values()));
+
+		for i in range(0,self.num_of_tinycubes):
 			self.tinyCubes.append(dict());
 		
 	def ifAggregate(self,aggregate):
@@ -95,7 +97,7 @@ class Cube:
 		return self.aggregate;
 
 	def getNumOfCubes(self):
-		return len(self.tinyCubes);
+		return self.num_of_tinycubes;
 
 	def getNumofGrids(self):
 		num = 0;
@@ -203,54 +205,38 @@ class Cube:
 	def askDBworker(self,key_set,tinycube_id,lock):
 	
 		lock.acquire();
-		#newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
-		#cursor = newdb.cursor();
+		newdb = mysql.connector.connect(host=_host_name,user=_user_name,db=_db_name);
+		cursor = newdb.cursor();
 		index = len(self.temp_work)-1;
 		while index >= 0:
 
 			subquery = self.temp_work.pop();
 			lock.release();
-			#cursor.execute(subquery);
+			cursor.execute(subquery);
 
-			#query_result = cursor.fetchall();
-			#query_val = query_result[0][0];
-			query_val = 0;
+			query_result = cursor.fetchall();
+			query_val = query_result[0][0];
 			if (self.if_repartition == True) or (self.if_repartition == False and self.checkIfGridInOldPartition(key_set[index],tinycube_id)):
-					lock.acquire();
-					if str(query_val) == "None":
-						query_val = 0;
-					self.tinyCubes[tinycube_id][key_set[index]] = query_val;
-					lock.release();
-					#print "Cached " + key_set[index] + " " + str(query_val);
+				lock.acquire();
+				if str(query_val) == "None":
+					query_val = 0;
+				self.tinyCubes[tinycube_id][key_set[index]] = query_val;
+				lock.release();
+				#print "Cached " + key_set[index] + " " + str(query_val);
 			self.q.put(query_val);
 			lock.acquire();
 			index = len(self.temp_work)-1;
 
 		lock.release();
-		#cursor.close();
+		cursor.close();
 		return;
 
 
 
 	def askDatabase(self,key_set,tinycube_id):
-		'''
-		query_set = self.generateQuery(tinycube_id,key_set);
-		operation = ';'.join(query_set);
-		result_set = [];
-		for index,result in enumerate(cursor.execute(operation, multi=True)):
-			query_result = result.fetchall();
-			query_val = query_result[0][0];
-			# Save the partial aggregate in the tinycube grid if we want repartition
-			# or (we don't allow repartition and this grids belongs to old grid) 
-			if (self.if_repartition == True) or (self.if_repartition == False and self.checkIfGridInOldPartition(key_set[index],tinycube_id)):
-				self.tinyCubes[tinycube_id][key_set[index]] = query_val;
-				print "Cached " + key_set[index] + " " + str(query_val);
-			result_set.append(query_val);
-		return result_set;
-		'''
 		
 		query_set = self.generateQuery(tinycube_id,key_set);
-		#print len(query_set);
+
 
 		self.temp_work = list(query_set);
 		lock = threading.Lock();
@@ -284,21 +270,22 @@ class Cube:
 		tinyCube = self.tinyCubes[tinycube_id];
 		cache_found = 0;
 		not_found = 0;
+		#print len(grids);
+		#print "Start retrieving cached partial answer"
 		for key in grids[1:]:
 			# Check which cube it belongs
 			if key in tinyCube.keys():
-				#print "Find Cached answer on " + key;
 				cache_found += 1;
 				cached_partial_result.append(tinyCube[key]);
 			else:
 				not_found += 1;
 				unknown_partial_aggr.append(key);
-
+		#print "Finished searching. Start querying database"
 		#print str(float(cache_found)/float(cache_found+not_found));
 
 		if unknown_partial_aggr:
 			unknown_partial_aggr_result = self.askDatabase(unknown_partial_aggr,tinycube_id);
-
+		#print "Get All answers from database"
 		return cached_partial_result+unknown_partial_aggr_result;
 
 	# Given predicate, produce a set of girds according to the partition

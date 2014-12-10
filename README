@@ -1,26 +1,40 @@
-To start TinyCube Module, Run:
-	./START_SERVER
+This is TinyCube, a lightweight partial aggregate results caching engine.
 
-To start TinyCube Client, Run:
-	./START_CLIENT
+How to use it:
+	0. Start:
+		python -m [TinyCube/COSMOS] [-r]
+		-m: mode, you could choose COSMOS or TinyCube
+		-r: optional, is turning on "Repartition"
+	
+	1. Training
+	   After initilization:
+	   It prompts:
+	   	"TRAIN or ANSWER (type t/a):"
+	   Type "t":
+	   
+	   It then prompts:
+	   	"Enter that training filename:"
+	   Type your training file name to train.
 
-Required Libraries:
-	Numpy, Scipy:
-		sudo apt-get install python-numpy python-scipy
-	Sklearn:
-		sudo apt-get install python-sklearn
-	Qt4:
+	2. Working
+	   After initilization:
+	   It prompts:
+	   	"TRAIN or ANSWER (type t/a):"
+	   Type "a":
+	   
+	   It then prompts:
+	   	"Enter your query: "
+	   Type your query to get answer.
 
-	mysql.connector:
+	3. How to generate training queries?
+		Use ./qgen/qgen.py, see ./qgen/README
 
-ERROR
-1. ImportError: No module named mysql.connector
-	Make sure Mysql python connector is installed. Check http://dev.mysql.com/downloads/connector/python/
+Note:
+This is just a simple prototype of TinyCube for proof of concept.
+It can not support complex queries that have "join", "group by", "having", etc., in them.
+For predicate comparison operator, it supports ">=" and "<" for numbers and dates, and "=" for strings.
+For aggregate operation, it supports "SUM" and "COUNT".
+A typical query is like "SELECT SUM(A) FROM T WHERE A > a_1 AND B <= b1".
 
-2. ImportError: No module named PyQt4.QtCore
-	Make sure qt is installed
-	sudo apt-get install qt4-qmake
-	sudo apt-get install python-qt4
-	When errors occur while installing Qt4, try update the packages:
-	sudo apt-get -f dist-upgrade
-	sudo dpkg -a --configure
+Also be careful in using "COSMOS" as the mode because it is SLOW!!!
+

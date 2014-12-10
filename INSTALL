@@ -1,0 +1,8 @@
+Required Libraries:
+	Numpy, Scipy:
+		sudo apt-get install python-numpy python-scipy
+	Sklearn:
+		sudo apt-get install python-sklearn
+
+	mysql.connector:
+		download at: http://dev.mysql.com/downloads/connector/python/
