@@ -6,3 +6,7 @@ Required Libraries:
 
 	mysql.connector:
 		download at: http://dev.mysql.com/downloads/connector/python/
+
+	mysql server:
+		sudo apt-get install mysql-server
+		See https://help.ubuntu.com/12.04/serverguide/mysql.html for installation details

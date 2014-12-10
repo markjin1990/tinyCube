@@ -1,16 +1,27 @@
-This is TinyCube, a lightweight partial aggregate results caching engine.
+This is TinyCube, a lightweight partial aggregate results caching engine. 
+The code is written for Python 2.7 and MySQL 5.5.
 
 How to configure:
 
 	In ./config/TinyCube.config, configure the database, server, and client set up.
+	For Database,
+		you configure what is the host, username and database name.
+	For TinyCube server,
+		you configure what is the host and port you want to run the TinyCube server on.
+
+	For TinyCube client,
+		you configure what is the server's host and port.
 
 How to use it:
-	0. Start:
+
+	0. Make sure you have your MySQL server running in the backend, and have the test relation ready.
+
+	1. Start:
 		python -m [TinyCube/COSMOS] [-r]
 		-m: mode, you could choose COSMOS or TinyCube
 		-r: optional, is turning on "Repartition"
 	
-	1. Training
+	2. Training
 	   After initilization:
 	   It prompts:
 	   	"TRAIN or ANSWER (type t/a):"
@@ -20,7 +31,7 @@ How to use it:
 	   	"Enter that training filename:"
 	   Type your training file name to train.
 
-	2. Working
+	3. Working
 	   After initilization:
 	   It prompts:
 	   	"TRAIN or ANSWER (type t/a):"
@@ -30,8 +41,12 @@ How to use it:
 	   	"Enter your query: "
 	   Type your query to get answer.
 
-	3. How to generate training queries?
+	4. How to generate training queries?
 		Use ./qgen/qgen.py, see ./qgen/README
+
+Dataset:
+	I used tpc-h dataset to test it. See http://www.tpc.org/tpch/ for details about tpc-h.
+	Try to use dataset smaller than 1G if you are running on personal computer.
 
 Note:
 This is just a simple prototype of TinyCube for proof of concept.
