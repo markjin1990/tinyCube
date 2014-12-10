@@ -5,9 +5,18 @@ Usage:
 	python TinyCube_client.py
 '''
 import socket 
+import sys
+import ConfigParser
 
-host = 'localhost' 
-port = 5000 
+sys.path.insert(0, './src/')
+sys.path.insert(0, './config/')
+sys.path.insert(0, './qgen/')
+
+config = ConfigParser.RawConfigParser()
+config.read('./config/TinyCube.cfg')
+
+host = config.get('TinyCube client', 'host');
+port = config.getint('TinyCube client', 'port');
 size = 1024 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 s.connect((host,port))
@@ -20,6 +29,8 @@ if mode == "t" or mode == "TRAIN":
 elif mode == "a" or mode == "ANSWER":
 	msg += "ANSWER ";
 	msg += raw_input("Enter your query: ")
+	while ";" in msg:
+		msg = msg.replace(";", "")
 s.send(msg)
 data = s.recv(size)
 s.close() 

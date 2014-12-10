@@ -7,7 +7,13 @@ import os.path
 import resource
 import socket
 import sys,getopt
+import ConfigParser
 sys.path.insert(0, './src/')
+sys.path.insert(0, './config/')
+sys.path.insert(0, './qgen/')
+
+config = ConfigParser.RawConfigParser()
+config.read('./config/TinyCube.cfg')
 
 # Local library
 import queryRewriter as rewriter
@@ -15,19 +21,23 @@ from trainer import Trainer
 from Cube import Cube
 
 # Constants
-_host_name = "localhost";
-_user_name = "root";
-_db_name = "tpch";
+#_host_name = "localhost";
+#_user_name = "root";
+#_db_name = "tpch";
+
+_host_name = config.get('Database', 'host');
+_user_name = config.get('Database', 'username');
+_db_name = config.get('Database', 'dbname');
+
 _cmd_train = "TRAIN";
 _cmd_answer = "ANSWER";
 _cmd_getNumOfCache = "CACHE#";
 
-_port = 5000
+_port = config.getint('TinyCube server', 'port')
+_server_host = config.get('TinyCube server', 'host')
 _backlog = 5 
 _size = 1024 
 
-# Files
-_default_workload = "./config/workload.dat";
 
 
 class TinyCube:
@@ -165,7 +175,7 @@ def main(argv):
 	# Start TinyCube server
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	s.bind((_host_name,_port)) 
+	s.bind((_server_host,_port)) 
 	s.listen(_backlog) 
 	while 1: 
 		client, address = s.accept() 

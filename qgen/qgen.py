@@ -13,13 +13,17 @@ import re
 import datetime
 import random
 import sys,getopt
+import ConfigParser
+
+config = ConfigParser.RawConfigParser()
+config.read('../config/TinyCube.cfg')
 
 # Constant
-_db_name_default = "tpch";
+_db_name_default = config.get('Database', 'dbname');
 _template_name_default = "template.sql";
 _output_file_default = "rand_query.sql"
-_host_name = "localhost";
-_user_name = "root";
+_host_name = config.get('Database', 'host');
+_user_name = config.get('Database', 'username');
 
 
 
