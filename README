@@ -1,5 +1,9 @@
 This is TinyCube, a lightweight partial aggregate results caching engine.
 
+How to configure:
+
+	In ./config/TinyCube.config, configure the database, server, and client set up.
+
 How to use it:
 	0. Start:
 		python -m [TinyCube/COSMOS] [-r]
