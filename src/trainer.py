@@ -41,7 +41,8 @@ class Trainer():
 
 
 
-	def spectralClustering(self,query_attr_set,cluster_num):
+	def spectralClustering(self,query_attr_set):
+		
 		# Get a set of aggregates mentioned in query_attr_set. E.g. ["SUM(A)@T","SUM(B)@T"]
 		aggr_list = [];
 		# For each aggregate, we have a list of predicate attribute groups, which will be used
@@ -60,8 +61,12 @@ class Trainer():
 
 		#print aggr_predicate_attr_list;
 
+		# This is running one spectral clustering for each unique aggregation 
 		group_info = dict();
 		for index,predicate_attr_set in enumerate(aggr_predicate_attr_list):
+			cluster_num = 2;
+
+
 			#print predicate_attr_set;
 			attr_set = list();
 			for sub_attr_set in predicate_attr_set:
@@ -96,8 +101,51 @@ class Trainer():
 			egvec = ret[1];
 
 
+			while True:
+				# new test data
+				data = [];
+				for i in range(0,attr_num):
+					newdat = [];
+					for j in range(0,cluster_num):
+						newdat.append(egvec[i][j]);
+					data.append(newdat);
 
-			# new test data
+
+
+				# K-means to find cluster
+				est = KMeans(k=cluster_num);
+				est.fit(data);
+				labels = est.labels_;
+				
+
+
+				# Create sub grouping map
+				subGroupMap = dict();
+				for i in range(0,attr_num):
+					subGroupMap[attr_set[i]] = labels[i];
+
+				# Create final grouping decision for this aggregation
+				group_info[aggr_list[index]] = subGroupMap;
+
+				mismatch_num = 0;
+				for one_query_attr_set in predicate_attr_set:
+					temp_set = set()
+					for myattr in one_query_attr_set:
+						temp_set.add(subGroupMap[myattr]);
+					# If the predicate attributes of this query can not be found in one TinyCube
+					if len(temp_set)>1:
+						mismatch_num += 1;
+				mismatch_ratio = float(mismatch_num) / float(len(predicate_attr_set));
+				if mismatch_ratio > 0.1:
+					# This many cluster causing too many mismatches, we set cluster_num -1 as final number of clusters
+					cluster_num -= 1;
+					break;
+				else:
+					# Try more clusters
+					cluster_num += 1
+
+
+			# Final Cluster Assignment
 			data = [];
 			for i in range(0,attr_num):
 				newdat = [];
@@ -121,6 +169,7 @@ class Trainer():
 
 			# Create final grouping decision for this aggregation
 			group_info[aggr_list[index]] = subGroupMap;
+
 
 		return group_info;
 
@@ -187,7 +236,7 @@ class Trainer():
 			print attr_partition
 		# We enable tinyCubes
 		else:
-			for key,value in self.spectralClustering(query_attr_set,2).iteritems():
+			for key,value in self.spectralClustering(query_attr_set).iteritems():
 				attr_partition[key] = value;
 
 
