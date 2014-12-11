@@ -16,12 +16,15 @@ How to use it:
 
 	0. Make sure you have your MySQL server running in the backend, and have the test relation ready.
 
-	1. Start:
-		python -m [TinyCube/COSMOS] [-r]
+	1. Start TinyCube server:
+		python tinyCube.py -m [TinyCube/COSMOS] [-r]
 		-m: mode, you could choose COSMOS or TinyCube
 		-r: optional, is turning on "Repartition"
 	
-	2. Training
+	2. Start TinyCube client:
+		 python TinyCube_client.py
+	
+	3. Training
 	   After initilization:
 	   It prompts:
 	   	"TRAIN or ANSWER (type t/a):"
@@ -29,9 +32,9 @@ How to use it:
 	   
 	   It then prompts:
 	   	"Enter that training filename:"
-	   Type your training file name to train.
+	   Type your training query file name to train.
 
-	3. Working
+	4. Working
 	   After initilization:
 	   It prompts:
 	   	"TRAIN or ANSWER (type t/a):"
@@ -41,7 +44,7 @@ How to use it:
 	   	"Enter your query: "
 	   Type your query to get answer.
 
-	4. How to generate training queries?
+	5. How to generate training queries?
 		Use ./qgen/qgen.py, see ./qgen/README
 
 Dataset:
@@ -56,4 +59,21 @@ For aggregate operation, it supports "SUM" and "COUNT".
 A typical query is like "SELECT SUM(A) FROM T WHERE A > a_1 AND B <= b1".
 
 Also be careful in using "COSMOS" as the mode because it is SLOW!!!
+
+Source Code Files:
+	tinyCube.py: TinyCube server source file
+
+	TinyCube_client.py: TinyCube client for testing the server
+
+	src/Cube.py: Cube class, used for all operations within TinyCube including answering queries, partition computation, caching and retrieving partial answers and communicating with Databases
+
+	src/matrix.py: some matrix computation used by src/trainer.py
+
+	src/trainer.py: create clustering and partitioning in training phase
+
+	src/queryRewriter.py: rewrite query string into a structure that is useable by other scripts.
+
+	qgen/qgen.py: automatically generating training and testing queries from user-defined query template
+
+	config/config.py: generate configuration file. But TinyCube.cfg configuration file can be edited throught any text editor without using config.py
 
